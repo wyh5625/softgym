@@ -8,6 +8,9 @@ from softgym.envs.cloth_fold import ClothFoldEnv
 from softgym.envs.cloth_drop import ClothDropEnv
 from softgym.envs.cloth_fold_crumpled import ClothFoldCrumpledEnv
 from softgym.envs.cloth_fold_drop import ClothFoldDropEnv
+from softgym.envs.cloth_push import ClothPushEnv
+from softgym.envs.pants_push import PantsPushEnv
+from softgym.envs.bimanual_tshirt import BimanualTshirtEnv
 
 from collections import OrderedDict
 
@@ -178,6 +181,28 @@ env_arg_dict = {
         num_variations=1000,
         deterministic=False
     ),
+    'ClothPushPPP': {'observation_mode': 'cam_rgb',
+                        'action_mode': 'pusher',
+                        'num_picker': 1,
+                        'render': True,
+                        'headless': True,
+                        'horizon': 20,
+                        'action_repeat': 1,
+                        'render_mode': 'cloth',
+                        'num_variations': 1000,
+                        'use_cached_states': False,
+                        'deterministic': False},
+    'PantsPushPPP': {'observation_mode': 'cam_rgb',
+                        'action_mode': 'pusher',
+                        'num_picker': 1,
+                        'render': True,
+                        'headless': True,
+                        'horizon': 20,
+                        'action_repeat': 1,
+                        'render_mode': 'cloth',
+                        'num_variations': 1000,
+                        'use_cached_states': False,
+                        'deterministic': False},
 }
 
 SOFTGYM_ENVS = OrderedDict({
@@ -193,4 +218,6 @@ SOFTGYM_ENVS = OrderedDict({
     'ClothFoldCrumpled': ClothFoldCrumpledEnv,
     'RopeFlatten': RopeFlattenEnv,
     'RopeConfiguration': RopeConfigurationEnv,
+    'ClothPushPPP': ClothPushEnv,
+    'PantsPushPPP': PantsPushEnv,
 })

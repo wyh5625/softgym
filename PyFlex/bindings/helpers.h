@@ -439,7 +439,7 @@ void SkinMesh()
 	}
 }
 
-void AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat(), int trigger=0, bool dynamic=false, int channels=eNvFlexPhaseShapeChannelMask
+int AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat(), int trigger=0, bool dynamic=false, int channels=eNvFlexPhaseShapeChannelMask
 	)
 {
 	// transform
@@ -464,6 +464,8 @@ void AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat()
 		// printf("use trigger box! \n");
 	}
 	g_buffers->shapeFlags.push_back(shapeFlag);
+
+	return g_buffers->shapePositions.size() - 1;
 }
 
 void PopBox(int num){
@@ -487,7 +489,7 @@ void AddPlinth()
 	AddBox(Vec3(2.0f, 0.5f, 2.0f), center);
 }
 
-void AddSphere(float radius, Vec3 position, Quat rotation)
+int AddSphere(float radius, Vec3 position, Quat rotation)
 {
 	NvFlexCollisionGeometry geo;
 	geo.sphere.radius = radius;
@@ -501,6 +503,8 @@ void AddSphere(float radius, Vec3 position, Quat rotation)
 
 	int flags = NvFlexMakeShapeFlags(eNvFlexShapeSphere, false);
 	g_buffers->shapeFlags.push_back(flags);
+
+	return g_buffers->shapePositions.size() - 1;
 }
 
 // creates a capsule aligned to the local x-axis with a given radius

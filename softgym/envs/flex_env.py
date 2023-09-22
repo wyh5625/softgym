@@ -19,6 +19,7 @@ class FlexEnv(gym.Env):
                  device_id=-1,
                  headless=False,
                  render=True,
+                 tweak_panel=False,
                  horizon=100,
                  camera_width=720,
                  camera_height=720,
@@ -29,7 +30,7 @@ class FlexEnv(gym.Env):
                  use_cached_states=True,
                  save_cached_states=True, **kwargs):
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
-        pyflex.init(headless, render, camera_width, camera_height)
+        pyflex.init(headless, render, tweak_panel, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
 
@@ -105,6 +106,7 @@ class FlexEnv(gym.Env):
             self.camera_params[camera_name] = camera_param
         else:
             camera_param = self.camera_params[camera_name]
+        # print(camera_param)
         pyflex.set_camera_params(
             np.array([*camera_param['pos'], *camera_param['angle'], camera_param['width'], camera_param['height']]))
 
@@ -122,8 +124,8 @@ class FlexEnv(gym.Env):
         pyflex.set_velocities(state_dict['particle_vel'])
         pyflex.set_shape_states(state_dict['shape_pos'])
         pyflex.set_phases(state_dict['phase'])
-        self.camera_params = copy.deepcopy(state_dict['camera_params'])
-        self.update_camera(self.camera_name)
+        self.camera_params = copy.deepcopy(state_dict['camera_params'][self.camera_name])
+        self.update_camera(self.camera_name, self.camera_params)
 
     def close(self):
         pyflex.clean()
@@ -142,12 +144,22 @@ class FlexEnv(gym.Env):
         self.video_frames = []
         self.recording = True
 
+    def shoot_frame(self):
+        if self.recording:
+            self.video_frames.append(self.render(mode='rgb_array'))
+
     def end_record(self, video_path=None, **kwargs):
         if not self.recording:
             print('function end_record: Error! Not recording video')
         self.recording = False
         if video_path is not None:
-            save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
+            # print("Number of frame: ", len(self.video_frames))
+
+            # copy and append the last frame to make the video longer
+            for i in range(500):
+                self.video_frames.append(self.video_frames[-1])
+            
+            save_numpy_as_gif(np.array(self.video_frames[::5]), video_path, **kwargs)
         del self.video_frames
 
     def reset(self, config=None, initial_state=None, config_id=None):
@@ -186,7 +198,9 @@ class FlexEnv(gym.Env):
         info = self._get_info()
 
         if self.recording:
+            # print("recording in env")
             self.video_frames.append(self.render(mode='rgb_array'))
+            # self.video_frames.extend(frames)
         self.time_step += 1
 
         done = False

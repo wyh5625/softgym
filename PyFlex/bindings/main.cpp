@@ -462,7 +462,7 @@ Vec3 g_lightTarget;
 bool g_pause = false;
 bool g_step = false;
 bool g_capture = false;
-bool g_showHelp = true;
+bool g_showHelp = false;
 bool g_tweakPanel = false;
 bool g_fullscreen = false;
 bool g_wireframe = false;
@@ -482,7 +482,7 @@ float g_waveFrequency = 1.5f;
 float g_waveAmplitude = 1.0f;
 float g_waveFloorTilt = 0.0f;
 
-Vec3 g_shape_color=Vec3(0.9);
+vector<Vec3> g_shape_color;
 Vec3 g_sceneLower;
 Vec3 g_sceneUpper;
 
@@ -541,7 +541,7 @@ int g_lastx;
 int g_lasty;
 int g_lastb = -1;
 
-bool g_profile = false;
+bool g_profile = true;
 bool g_outputAllFrameTimes = false;
 bool g_asyncComputeBenchmark = false;
 
@@ -725,9 +725,9 @@ void Init(int scene, py::array_t<float> scene_params, bool centerCamera = true, 
 
     g_params.radius = 0.15f;
     g_params.viscosity = 0.0f;
-    g_params.dynamicFriction = 0.0f;
-    g_params.staticFriction = 0.0f;
-    g_params.particleFriction = 0.0f; // scale friction between particles by default
+    g_params.dynamicFriction = 0.9f;
+    g_params.staticFriction = 0.9f;
+    g_params.particleFriction = 0.3f; // scale friction between particles by default
     g_params.freeSurfaceDrag = 0.0f;
     g_params.drag = 0.0f;
     g_params.lift = 0.0f;
@@ -1653,13 +1653,20 @@ void DrawShapes() {
         auto type = int(flags & eNvFlexShapeFlagTypeMask);
         //bool dynamic = int(flags&eNvFlexShapeFlagDynamic) > 0;
 
-        Vec3 color = g_shape_color;
+        // if (i <= g_shape_color.size()){
 
-        if (flags & eNvFlexShapeFlagTrigger) {
-            // printf("there is a trigger shape! \n");
-            color = Vec3(1.0f, 0.0f, 0.0f);
-            // SetFillMode(true);
+        // }
+        if(i >= g_shape_color.size()){
+            printf("error: shape color size is not enough! \n");
         }
+
+        Vec3 color = g_shape_color[i];
+
+        // if (flags & eNvFlexShapeFlagTrigger) {
+        //     // printf("there is a trigger shape! \n");
+        //     color = Vec3(1.0f, 0.0f, 0.0f);
+        //     // SetFillMode(true);
+        // }
 
         // render with prev positions to match particle update order
         // can also think of this as current/next
@@ -1696,6 +1703,10 @@ void DrawShapes() {
             box->Transform(xform);
 
             DrawMesh(box, Vec3(color));
+
+            // DrawRect(0.5, 0.5, 0.2, 0.2, Vec3(0, 1, 0));
+            // std::cout << "Draw rect! \n";
+
             delete box;
         } else if (type == eNvFlexShapeConvexMesh) {
             if (g_convexes.find(geo.convexMesh.mesh) != g_convexes.end()) {
@@ -1884,7 +1895,6 @@ int DoUI() {
         }
 
         imguiEndScrollArea();
-
         if (g_tweakPanel) {
             static int scroll = 0;
 
@@ -1988,7 +1998,6 @@ int DoUI() {
             imguiSeparatorLine();
             imguiSlider("Anisotropy Scale", &g_params.anisotropyScale, 0.0f, 30.0f, 0.01f);
             imguiSlider("Smoothing", &g_params.smoothing, 0.0f, 1.0f, 0.01f);
-
             // diffuse params
             imguiSeparatorLine();
             imguiSlider("Diffuse Threshold", &g_params.diffuseThreshold, 0.0f, 1000.0f, 1.0f);
@@ -2003,14 +2012,14 @@ int DoUI() {
             n = float(g_params.diffuseBallistic);
             if (imguiSlider("Diffuse Ballistic", &n, 1, 40, 1))
                 g_params.diffuseBallistic = int(n);
-
+            
             imguiEndScrollArea();
         }
 
         imguiEndFrame();
 
         // kick render commands
-//        DrawImguiGraph();
+       DrawImguiGraph();
     }
 
     return newScene;
@@ -2147,7 +2156,6 @@ void UpdateFrame(py::array_t<float> update_params) {
     // Render
     int newScene = -1;
     double renderBeginTime = GetSeconds();
-
     if (g_render) {
         
 
@@ -2168,9 +2176,9 @@ void UpdateFrame(py::array_t<float> update_params) {
         RenderDebug();
 
         // printf("render scene & debug done\n");
-
+        
         if (!g_headless) {
-            newScene = DoUI();
+            newScene = DoUI();            
         }
 
         EndFrame();
@@ -2181,10 +2189,8 @@ void UpdateFrame(py::array_t<float> update_params) {
         if (!g_useAsyncCompute)
             NvFlexComputeWaitForGraphics(g_flexLib);
     }
-
     UnmapBuffers(g_buffers);
     // printf("unmap buffers done\n");
-
     if (!g_headless) {
         // move mouse particle (must be done here as GetViewRay() uses the GL projection state)
         if (g_mouseParticle != -1) {

@@ -11,12 +11,13 @@ char *make_path(char *full_path, std::string path) {
     return full_path;
 }
 
-void pyflex_init(bool headless=false, bool render=true, int camera_width=720, int camera_height=720) {
+void pyflex_init(bool headless=false, bool render=true, bool tweak_panel=false, int camera_width=720, int camera_height=720) {
     g_screenWidth = camera_width;
     g_screenHeight = camera_height;
 
     g_headless = headless;
     g_render = render;
+    g_tweakPanel = tweak_panel;
     if (g_headless) {
         g_interop = false;
         g_pause = false;
@@ -27,6 +28,7 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
     g_scenes.push_back(new SoftgymRope("Softgym Rope"));
     g_scenes.push_back(new SoftgymRigidCloth("Softgym Rigid Cloth"));
     g_scenes.push_back(new SoftgymTorus("Softgym Torus"));
+    g_scenes.push_back(new SoftgymTshirt("Softgym Tshirt"));
 
     SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
 	rope.mScale = Vec3(50.0f);
@@ -314,7 +316,7 @@ void pyflex_add_capsule(py::array_t<float> params, py::array_t<float> lower_pos,
 }
 
 
-void pyflex_add_box(py::array_t<float> halfEdge_, py::array_t<float> center_, py::array_t<float> quat_, int trigger) {
+int pyflex_add_box(py::array_t<float> halfEdge_, py::array_t<float> center_, py::array_t<float> quat_, int trigger) {
     pyflex_MapShapeBuffers(g_buffers);
 
     auto ptr_halfEdge = (float *) halfEdge_.request().ptr;
@@ -327,9 +329,30 @@ void pyflex_add_box(py::array_t<float> halfEdge_, py::array_t<float> center_, py
     Quat quat = Quat(ptr_quat[0], ptr_quat[1], ptr_quat[2], ptr_quat[3]);
 
     // cout << "trigger is " << trigger << endl;
-    AddBox(halfEdge, center, quat, trigger);
+    int shape_id = AddBox(halfEdge, center, quat, trigger);
+    g_shape_color.push_back(Vec3(1.0f, 1.0f, 1.0f));
 
     pyflex_UnmapShapeBuffers(g_buffers);
+
+    return shape_id;
+}
+
+void pyflex_draw_rect(float x, float y, float w, float h, py::array_t<float> color_) {
+    
+    auto ptr_color = (float *) color_.request().ptr;
+    Vec3 color = Vec3(ptr_color[0], ptr_color[1], ptr_color[2]);
+    DrawRect(x, y, w, h, color);
+    // print x, y, w, h, color
+    std::cout << "x: " << x << " y: " << y << " w: " << w << " h: " << h <<  std::endl;
+    std::cout << "color: " << color.x << " " << color.y << " " << color.z << std::endl;
+
+
+}
+
+void pyflex_draw_line(float x0, float y0, float x1, float y1, float r, py::array_t<float> color_){
+    auto ptr_color = (float *) color_.request().ptr;
+    Vec3 color = Vec3(ptr_color[0], ptr_color[1], ptr_color[2]);
+    DrawLine(x0, y0, x1, y1, r, color);
 }
 
 void pyflex_pop_box(int num) {
@@ -338,7 +361,7 @@ void pyflex_pop_box(int num) {
     pyflex_UnmapShapeBuffers(g_buffers);
 }
 
-void pyflex_add_sphere(float radius, py::array_t<float> position_, py::array_t<float> quat_) {
+int pyflex_add_sphere(float radius, py::array_t<float> position_, py::array_t<float> quat_) {
     pyflex_MapShapeBuffers(g_buffers);
 
     auto ptr_center = (float *) position_.request().ptr;
@@ -347,9 +370,12 @@ void pyflex_add_sphere(float radius, py::array_t<float> position_, py::array_t<f
     auto ptr_quat = (float *) quat_.request().ptr;
     Quat quat = Quat(ptr_quat[0], ptr_quat[1], ptr_quat[2], ptr_quat[3]);
 
-    AddSphere(radius, center, quat);
+    int shape_id = AddSphere(radius, center, quat);
+    g_shape_color.push_back(Vec3(1.0f, 1.0f, 1.0f));
 
     pyflex_UnmapShapeBuffers(g_buffers);
+
+    return shape_id;
 }
 
 int pyflex_get_n_particles() {
@@ -432,17 +458,18 @@ void pyflex_set_phases(py::array_t<int> phases) {
 }
 
 py::array_t<float> pyflex_get_positions() {
+    // check g_buffers is exist
     g_buffers->positions.map();
     auto positions = py::array_t<float>((size_t) g_buffers->positions.size() * 4);
     auto ptr = (float *) positions.request().ptr;
-
+    
     for (size_t i = 0; i < (size_t) g_buffers->positions.size(); i++) {
         ptr[i * 4] = g_buffers->positions[i].x;
         ptr[i * 4 + 1] = g_buffers->positions[i].y;
         ptr[i * 4 + 2] = g_buffers->positions[i].z;
         ptr[i * 4 + 3] = g_buffers->positions[i].w;
     }
-
+    
     g_buffers->positions.unmap();
 
     return positions;
@@ -776,10 +803,10 @@ py::array_t<float> pyflex_get_shape_states() {
     return states;
 }
 
-void pyflex_set_shape_color(py::array_t<float> color) {
+void pyflex_set_shape_color(int shape_id, py::array_t<float> color) {
     auto buf = color.request();
     auto ptr = (float *) buf.ptr;
-    for (int i=0; i<3; ++i) g_shape_color[i] = ptr[i];
+    for (int i=0; i<3; ++i) g_shape_color[shape_id][i] = ptr[i];
 }
 
 void pyflex_set_shape_states(py::array_t<float> states) {
@@ -807,6 +834,38 @@ void pyflex_set_shape_states(py::array_t<float> states) {
         g_buffers->shapePrevRotations[i].z = ptr[i * 14 + 12];
         g_buffers->shapePrevRotations[i].w = ptr[i * 14 + 13];
     }
+
+    UpdateShapes();
+
+    pyflex_UnmapShapeBuffers(g_buffers);
+}
+
+void pyflex_set_shape_state(py::array_t<float> states, int shape_id) {
+    pyflex_MapShapeBuffers(g_buffers);
+
+    auto buf = states.request();
+    auto ptr = (float *) buf.ptr;
+
+    // for (size_t i = 0; i < (size_t) g_buffers->shapePositions.size(); i++) {
+        
+    // }
+    g_buffers->shapePositions[shape_id].x = ptr[0];
+    g_buffers->shapePositions[shape_id].y = ptr[1];
+    g_buffers->shapePositions[shape_id].z = ptr[2];
+
+    g_buffers->shapePrevPositions[shape_id].x = ptr[3];
+    g_buffers->shapePrevPositions[shape_id].y = ptr[4];
+    g_buffers->shapePrevPositions[shape_id].z = ptr[5];
+
+    g_buffers->shapeRotations[shape_id].x = ptr[6];
+    g_buffers->shapeRotations[shape_id].y = ptr[7];
+    g_buffers->shapeRotations[shape_id].z = ptr[8];
+    g_buffers->shapeRotations[shape_id].w = ptr[9];
+
+    g_buffers->shapePrevRotations[shape_id].x = ptr[10];
+    g_buffers->shapePrevRotations[shape_id].y = ptr[11];
+    g_buffers->shapePrevRotations[shape_id].z = ptr[12];
+    g_buffers->shapePrevRotations[shape_id].w = ptr[13];
 
     UpdateShapes();
 
@@ -842,14 +901,14 @@ py::array_t<int> pyflex_get_camera_params() {
     // yf: add the camera position and camera angle
     auto default_camera_param = py::array_t<float>(8);
     auto default_camera_param_ptr = (float *) default_camera_param.request().ptr;
-    default_camera_param_ptr[0] = g_screenWidth;
-    default_camera_param_ptr[1] = g_screenHeight;
-    default_camera_param_ptr[2] = g_camPos.x;
-    default_camera_param_ptr[3] = g_camPos.y;
-    default_camera_param_ptr[4] = g_camPos.z;
-    default_camera_param_ptr[5] = g_camAngle.x;
-    default_camera_param_ptr[6] = g_camAngle.y;
-    default_camera_param_ptr[7] = g_camAngle.z;
+    default_camera_param_ptr[0] = g_camPos.x;
+    default_camera_param_ptr[1] = g_camPos.y;
+    default_camera_param_ptr[2] = g_camPos.z;
+    default_camera_param_ptr[3] = g_camAngle.x;
+    default_camera_param_ptr[4] = g_camAngle.y;
+    default_camera_param_ptr[5] = g_camAngle.z;
+    default_camera_param_ptr[6] = g_screenWidth;
+    default_camera_param_ptr[7] = g_screenHeight;
     return default_camera_param;
 }
 
@@ -1126,7 +1185,7 @@ PYBIND11_MODULE(pyflex, m) {
           py::arg("update_params") = nullptr,
           py::arg("capture") = 0,
           py::arg("path") = nullptr,
-          py::arg("render") = 0);
+          py::arg("render") = 1);
     m.def("render", &pyflex_render,
           py::arg("capture") = 0,
           py::arg("path") = nullptr
@@ -1176,6 +1235,7 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("get_shape_states", &pyflex_get_shape_states, "Get shape states");
     m.def("set_shape_states", &pyflex_set_shape_states, "Set shape states");
+    m.def("set_shape_state", &pyflex_set_shape_state, "Set shape state");
     m.def("clear_shapes", &ClearShapes, "Clear shapes");
 
     m.def("get_scene_upper", &pyflex_get_sceneUpper);
@@ -1183,5 +1243,9 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("add_rigid_body", &pyflex_add_rigid_body);
     m.def("set_shape_color", &pyflex_set_shape_color, "Set the color of the shape");
+
+    m.def("draw_rect", &pyflex_draw_rect);
+    m.def("draw_line", &pyflex_draw_line);
+    
 }
 

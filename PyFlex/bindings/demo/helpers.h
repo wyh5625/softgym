@@ -439,7 +439,7 @@ void SkinMesh()
 	}
 }
 
-void AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat(), bool dynamic=false, int channels=eNvFlexPhaseShapeChannelMask)
+int AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat(), bool dynamic=false, int channels=eNvFlexPhaseShapeChannelMask)
 {
 	// transform
 	g_buffers->shapePositions.push_back(Vec4(center.x, center.y, center.z, 0.0f));
@@ -455,6 +455,8 @@ void AddBox(Vec3 halfEdge = Vec3(2.0f), Vec3 center=Vec3(0.0f), Quat quat=Quat()
 
 	g_buffers->shapeGeometry.push_back(geo);
 	g_buffers->shapeFlags.push_back(NvFlexMakeShapeFlagsWithChannels(eNvFlexShapeBox, dynamic, channels));
+
+	return g_buffers->shapePositions.size() - 1
 }
 
 // helper that creates a plinth whose center matches the particle bounds
@@ -469,7 +471,7 @@ void AddPlinth()
 	AddBox(Vec3(2.0f, 0.5f, 2.0f), center);
 }
 
-void AddSphere(float radius, Vec3 position, Quat rotation)
+int AddSphere(float radius, Vec3 position, Quat rotation)
 {
 	NvFlexCollisionGeometry geo;
 	geo.sphere.radius = radius;
@@ -483,6 +485,8 @@ void AddSphere(float radius, Vec3 position, Quat rotation)
 
 	int flags = NvFlexMakeShapeFlags(eNvFlexShapeSphere, false);
 	g_buffers->shapeFlags.push_back(flags);
+
+	return g_buffers->shapePositions.size() - 1;
 }
 
 // creates a capsule aligned to the local x-axis with a given radius

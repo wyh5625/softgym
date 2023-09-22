@@ -2,20 +2,20 @@ import numpy as np
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG
+from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG, Pusher
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 
 
 class ClothEnv(FlexEnv):
-    def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', picker_radius=0.05, picker_threshold=0.005, particle_radius=0.00625, **kwargs):
+    def __init__(self, observation_mode, action_mode, num_picker=2, pusher_length=0.2, render_mode='particle', picker_radius=0.05, picker_threshold=0.005, particle_radius=0.00625, **kwargs):
         self.render_mode = render_mode
         self.action_mode = action_mode
         self.cloth_particle_radius = particle_radius
         super().__init__(**kwargs)
 
         assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb']
-        assert action_mode in ['picker', 'pickerpickplace', 'sawyer', 'franka', 'picker_qpg']
+        assert action_mode in ['picker', 'pickerpickplace', 'sawyer', 'franka', 'picker_qpg', 'pusher']
         self.observation_mode = observation_mode
 
         if action_mode == 'picker':
@@ -25,7 +25,7 @@ class ClothEnv(FlexEnv):
             self.picker_radius = picker_radius
         elif action_mode == 'pickerpickplace':
             self.action_tool = PickerPickPlace(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
-                                               picker_low=(-0.5, 0., -0.5), picker_high=(0.5, 0.3, 0.5))
+                                               picker_low=(-5, 0., -5), picker_high=(5, 0.3, 5))
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
         elif action_mode in ['sawyer', 'franka']:
@@ -38,6 +38,12 @@ class ClothEnv(FlexEnv):
                                          picker_low=(-0.3, 0., -0.3), picker_high=(0.3, 0.3, 0.3)
                                          )
             self.action_space = self.action_tool.action_space
+        elif action_mode == 'pusher':
+            self.action_tool = Pusher(num_picker, pusher_length=pusher_length, env=self, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
+                                      picker_low=(-10, -0.2, -10), picker_high=(10, 1.0, 10))
+            self.action_space = self.action_tool.action_space
+            self.picker_radius = picker_radius
+
         if observation_mode in ['key_point', 'point_cloud']:
             if observation_mode == 'key_point':
                 obs_dim = len(self._get_key_point_idx()) * 3
@@ -89,22 +95,31 @@ class ClothEnv(FlexEnv):
 
     def get_default_config(self):
         """ Set the default config of the environment and load it to self.config """
+        camera_width, camera_height = 720, 720
         particle_radius = self.cloth_particle_radius
         if self.action_mode in ['sawyer', 'franka']:
             cam_pos, cam_angle = np.array([0.0, 1.62576, 1.04091]), np.array([0.0, -0.844739, 0])
         else:
-            cam_pos, cam_angle = np.array([-0.0, 0.82, 0.82]), np.array([0, -45 / 180. * np.pi, 0.])
+            cam_pos, cam_angle = np.array([-0.0, 2.3, 0]), np.array([0.0, -90 / 180. * np.pi, 0.0])
         config = {
-            'ClothPos': [-1.6, 2.0, -0.8],
-            'ClothSize': [int(0.6 / particle_radius), int(0.368 / particle_radius)],
-            'ClothStiff': [0.8, 1, 0.9],  # Stretch, Bend and Shear
+            'ClothPos': [0.01, 0.15, 0.01],
+            # 48cm x 33cm
+            # 'ClothSize': [int(0.6 / particle_radius), int(0.36875 / particle_radius)],  # 0.6*0.36875
+            'ClothSize': [95, 59],
+            # 'ClothSize': [int(0.48 / particle_radius), int(0.33 / particle_radius)],
+            'ClothStiff': [0.9, 1, 0.9],  # Stretch, Bend and Shear
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
                                   {'pos': cam_pos,
                                    'angle': cam_angle,
-                                   'width': self.camera_width,
-                                   'height': self.camera_height}},
-            'flip_mesh': 0
+                                   'width': camera_width,
+                                   'height': camera_height}},
+            'mass': 0.2,
+            'flip_mesh': 1,
+            'drop_height': 0.5,
+            'static_friction': 0.1,
+            'dynamic_friction': 0.1,
+            'flatten_area': 0
         }
 
         return config
@@ -153,7 +168,7 @@ class ClothEnv(FlexEnv):
         mass = config['mass'] if 'mass' in config else 0.5
         scene_params = np.array([*config['ClothPos'], *config['ClothSize'], *config['ClothStiff'], render_mode,
                                  *camera_params['pos'][:], *camera_params['angle'][:], camera_params['width'], camera_params['height'], mass,
-                                 config['flip_mesh']])
+                                 config['flip_mesh'], config['static_friction'], config['dynamic_friction']])
         if self.version == 2:
             robot_params = [1.] if self.action_mode in ['sawyer', 'franka'] else []
             self.params = (scene_params, robot_params)

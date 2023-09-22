@@ -4,28 +4,64 @@ import numpy as np
 import imageio
 import glob
 from PIL import Image
-from moviepy.editor import ImageSequenceClip
+from moviepy.editor import ImageSequenceClip, VideoClip
+# from moviepy.video.io.VideoFileClip import VideoFileClip
+# from moviepy.editor import VideoClip
 
 
-def make_grid(array, nrow=1, padding=0, pad_value=120):
+# def make_grid(array, nrow=1, padding=0, pad_value=120, image_size=(256, 256)):
+#     """ numpy version of the make_grid function in torch. Dimension of array: NHWC """
+#     if len(array.shape) == 3:  # In case there is only one channel
+#         array = np.expand_dims(array, 3)
+
+#     N, H, W, C = array.shape
+#     ncol = (N + nrow - 1) // nrow  # Calculate the number of columns
+
+#     grid_height = nrow * image_size[0] + padding * (nrow - 1)
+#     grid_width = ncol * image_size[1] + padding * (ncol - 1)
+
+#     grid_img = np.full((grid_height, grid_width, C), pad_value, dtype=np.uint8)
+
+#     idx = 0
+#     for i in range(nrow):
+#         for j in range(ncol):
+#             if idx < N:
+#                 y_start = i * (image_size[0] + padding)
+#                 x_start = j * (image_size[1] + padding)
+#                 img = array[idx]
+#                 resized_img = cv2.resize(img, image_size)  # Resize the image to image_size
+#                 grid_img[y_start:y_start + image_size[0], x_start:x_start + image_size[1]] = resized_img
+#                 idx += 1
+
+#     return grid_img
+
+
+def make_grid(array, ncol=10, padding=0, pad_value=120, image_size=(256, 256)):
     """ numpy version of the make_grid function in torch. Dimension of array: NHWC """
     if len(array.shape) == 3:  # In case there is only one channel
         array = np.expand_dims(array, 3)
+
     N, H, W, C = array.shape
-    assert N % nrow == 0
-    ncol = N // nrow
+    
+    # Calculate the number of rows based on the given number of columns
+    nrow = N // ncol + 1 if N % ncol != 0 else N // ncol
+    
+    grid_height = nrow * image_size[0] + padding * (nrow - 1)
+    grid_width = ncol * image_size[1] + padding * (ncol - 1)
+
+    grid_img = np.full((grid_height, grid_width, C), pad_value, dtype=np.uint8)
+
     idx = 0
-    grid_img = None
     for i in range(nrow):
-        row = np.pad(array[idx], [[padding if i == 0 else 0, padding], [padding, padding], [0, 0]], constant_values=pad_value)
-        for j in range(1, ncol):
-            idx += 1
-            cur_img = np.pad(array[idx], [[padding if i == 0 else 0, padding], [0, padding], [0, 0]], constant_values=pad_value)
-            row = np.hstack([row, cur_img])
-        if i == 0:
-            grid_img = row
-        else:
-            grid_img = np.vstack([grid_img, row])
+        for j in range(ncol):
+            if idx < N:
+                y_start = i * (image_size[0] + padding)
+                x_start = j * (image_size[1] + padding)
+                img = array[idx]
+                resized_img = cv2.resize(img, image_size)  # Resize the image to image_size
+                grid_img[y_start:y_start + image_size[0], x_start:x_start + image_size[1]] = resized_img
+                idx += 1
+
     return grid_img
 
 
@@ -62,7 +98,8 @@ def save_numpy_as_gif(array, filename, fps=20, scale=1.0):
 
     # ensure that the file has the .gif extension
     fname, _ = os.path.splitext(filename)
-    filename = fname + '.gif'
+    gif_filename = fname + '.gif'
+    mp4_filename = fname + '.mp4'
 
     # copy into the color dimension if the images are black and white
     if array.ndim == 3:
@@ -70,7 +107,8 @@ def save_numpy_as_gif(array, filename, fps=20, scale=1.0):
 
     # make the moviepy clip
     clip = ImageSequenceClip(list(array), fps=fps).resize(scale)
-    clip.write_gif(filename, fps=fps)
+    clip.write_gif(gif_filename, fps=fps)
+    clip.write_videofile(mp4_filename, fps=fps)
     return clip
 
 
@@ -88,6 +126,7 @@ def save_numpy_to_gif_matplotlib(array, filename, interval=50):
 
     ani = animation.FuncAnimation(fig, img_show, len(array), interval=interval)
 
+
     ani.save('{}.mp4'.format(filename))
 
     import ffmpy
@@ -97,3 +136,28 @@ def save_numpy_to_gif_matplotlib(array, filename, interval=50):
 
     ff.run()
     # plt.show()
+
+def save_frame_as_image(frame, filename, scale=1.0):
+    """Saves a specific frame of an array of frames as an image using moviepy.
+    
+    Parameters
+    ----------
+    frame : array_like
+        A specific frame from an array of frames
+    filename : string
+        The filename of the image to write to
+    scale : float
+        How much to rescale the image by (default: 1.0)
+    """
+    
+    # ensure that the file has the desired image extension
+    fname, ext = os.path.splitext(filename)
+    if not ext:
+        ext = ".png"
+    filename = fname + ext
+    
+    # make the moviepy ImageClip
+    clip = ImageSequenceClip([frame], fps=1).resize(scale)
+    
+    # Save the image
+    clip.save_frame(filename)

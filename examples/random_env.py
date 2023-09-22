@@ -63,6 +63,7 @@ def main():
         if args.test_depth:
             show_depth()
 
+    
     if args.save_video_dir is not None:
         save_name = osp.join(args.save_video_dir, args.env_name + '.gif')
         save_numpy_as_gif(np.array(frames), save_name)

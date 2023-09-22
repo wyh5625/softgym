@@ -4,6 +4,7 @@ from gym.spaces import Box
 from softgym.utils.misc import rotation_2d_around_center, extend_along_center
 import pyflex
 import scipy.spatial
+import math
 
 
 class ActionToolBase(metaclass=abc.ABCMeta):
@@ -21,7 +22,7 @@ class ActionToolBase(metaclass=abc.ABCMeta):
 
 class Picker(ActionToolBase):
     def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), picker_threshold=0.005, particle_radius=0.05,
-                 picker_low=(-0.4, 0., -0.4), picker_high=(0.4, 0.5, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+                 picker_low=(-0.4, 0.2, -0.4), picker_high=(0.4, 0.5, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
         """
 
         :param gripper_type:
@@ -77,6 +78,7 @@ class Picker(ActionToolBase):
         init_picker_poses = self._get_centered_picker_pos(center)
 
         for picker_pos in init_picker_poses:
+            # get id of add_sphereadd_sphere
             pyflex.add_sphere(self.picker_radius, picker_pos, [1, 0, 0, 0])
         pos = pyflex.get_shape_states()  # Need to call this to update the shape collision
         pyflex.set_shape_states(pos)
@@ -92,29 +94,41 @@ class Picker(ActionToolBase):
         # print('inv_mass_shape after reset:', self.particle_inv_mass.shape)
 
     @staticmethod
-    def _get_pos():
+    def _get_pos(ids=None):
         """ Get the current pos of the pickers and the particles, along with the inverse mass of each particle """
         picker_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)
         particle_pos = np.array(pyflex.get_positions()).reshape(-1, 4)
-        return picker_pos[:, :3], particle_pos
+        if ids is None:
+            return picker_pos[:, :3], particle_pos
+        else:
+            return picker_pos[ids, :3], particle_pos
 
     @staticmethod
-    def _set_pos(picker_pos, particle_pos):
+    def _set_pos(picker_pos, particle_pos, ids=None):
         shape_states = np.array(pyflex.get_shape_states()).reshape(-1, 14)
-        shape_states[:, 3:6] = shape_states[:, :3]
-        shape_states[:, :3] = picker_pos
+        if ids is None:
+            shape_states[:, 3:6] = shape_states[:, :3]
+            shape_states[:, :3] = picker_pos
+        else:
+            shape_states[ids, 3:6] = shape_states[ids, :3]
+            shape_states[ids, :3] = picker_pos
         pyflex.set_shape_states(shape_states)
         pyflex.set_positions(particle_pos)
 
     @staticmethod
-    def set_picker_pos(picker_pos):
+    def set_picker_pos(picker_pos, ids=None):
         """ Caution! Should only be called during the reset of the environment. Used only for cloth drop environment. """
         shape_states = np.array(pyflex.get_shape_states()).reshape(-1, 14)
-        shape_states[:, 3:6] = picker_pos
-        shape_states[:, :3] = picker_pos
+        if ids is None:
+            shape_states[:, 3:6] = picker_pos
+            shape_states[:, :3] = picker_pos
+        else:
+            shape_states[ids, 3:6] = picker_pos
+            shape_states[ids, :3] = picker_pos
+
         pyflex.set_shape_states(shape_states)
 
-    def step(self, action):
+    def step(self, action, ids=None):
         """ action = [translation, pick/unpick] * num_pickers.
         1. Determine whether to pick/unpick the particle and which one, for each picker
         2. Update picker pos
@@ -123,7 +137,7 @@ class Picker(ActionToolBase):
         action = np.reshape(action, [-1, 4])
         # pick_flag = np.random.random(self.num_picker) < action[:, 3]
         pick_flag = action[:, 3] > 0.5
-        picker_pos, particle_pos = self._get_pos()
+        picker_pos, particle_pos = self._get_pos(ids)
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
 
         # Un-pick the particles
@@ -153,8 +167,8 @@ class Picker(ActionToolBase):
 
                 if self.picked_particles[i] is not None:
                     # TODO The position of the particle needs to be updated such that it is close to the picker particle
-                    new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,
-                                                                                                                                         :]
+                    new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,:]
+                    new_particle_pos[self.picked_particles[i], 1] = 0.001
                     new_particle_pos[self.picked_particles[i], 3] = 0  # Set the mass to infinity
 
         # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
@@ -179,7 +193,217 @@ class Picker(ActionToolBase):
                         new_particle_pos[picked_particle_idices[i], :3] = particle_pos[picked_particle_idices[i], :3].copy()
                         new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
 
+        self._set_pos(new_picker_pos, new_particle_pos, ids)
+
+class Pusher(Picker):
+    def __init__(self, num_picker=3, pusher_length=0.2, env=None, picker_low=None, picker_high=None, **kwargs):
+        super().__init__(num_picker=num_picker,
+                         picker_low=picker_low,
+                         picker_high=picker_high,
+                         **kwargs)
+        picker_low, picker_high = list(picker_low), list(picker_high)
+        self.action_space = Box(np.array([*picker_low, 0 ,0.]),
+                                np.array([*picker_high, 2*np.pi, 1.]), dtype=np.float32)
+        self.delta_move = 0.003
+        self.env = env
+        # orientation of pusher
+        self.ori = np.pi/2
+        self.pos = np.array([0.0, 0.0, 0.0]) # x,y
+        self.pusher_length = pusher_length
+        self.color = np.array([0, 0, 255])/255.0
+
+    def min_rotation(self, old_ori, new_ori):
+        diff = new_ori - old_ori
+        if diff > np.pi:
+            diff -= 2*np.pi
+        elif diff < -np.pi:
+            diff += 2*np.pi
+
+        return diff
+    
+    def get_rotation_angle(self, v1, v2):
+        dot_product = v1[0]*v2[0] + v1[1]*v2[1]
+        determinant = v1[0]*v2[1] - v1[1]*v2[0]
+        angle = math.atan2(determinant, dot_product)
+        return angle
+    
+    # find the orientation of the pusher
+    def find_orientation(self, endA, endB):
+        vecA = endB - endA
+        # find artan of vecA
+        ori = math.atan2(vecA[1], vecA[0])
+
+        return ori
+
+        # vecB = endB - endA
+
+        # # toX defined as 0 degree of orientation when pusher is parallel to x axis
+        # toX = np.array([1,0])
+
+        # angleA = self.get_rotation_angle(toX, vecA)
+        # angleB = self.get_rotation_angle(toX, vecB)
+
+        # # find minum angle
+        # if abs(angleA) < abs(angleB):
+        #     return angleA
+        # else:
+        #     return angleB
+        
+
+    def step(self, action):
+        """
+        action: Array of 5 . For each picker, the action should be [x, y, z, rot, pick/drop]. The picker will then first pick/drop, and keep
+        the pick/drop state while moving towards x, y, x, rot
+        """
+        total_steps = 0
+        # action = action.reshape(-1, 4)
+        # curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[int(self.num_picker/2), :3]
+        curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3][self.pusher_particles]
+        curr_mid_pos = curr_pos[int(self.num_picker/2)]
+
+        end_pos = self._apply_picker_boundary(action[:3])
+        dist = np.linalg.norm(curr_mid_pos - end_pos)
+        num_step = np.ceil(dist / self.delta_move)
+        if num_step < 0.1:
+            return
+        delta_t = (end_pos - curr_mid_pos) / num_step
+        delta_r = self.min_rotation(self.ori, action[3])/num_step
+
+        # print("dist: ", dist)
+        # print("num_step: ", num_step)
+        # print("delta_move: ", self.delta_move)
+
+        # print("---------------")
+        # print("Move to: ", action)
+
+        #norm_delta = np.linalg.norm(delta)
+        for i in range(int(num_step)):  # The maximum number of steps allowed for one pick and place
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3][self.pusher_particles]
+            curr_mid_pos = curr_pos[int(self.num_picker/2)]
+            dist = np.linalg.norm(end_pos - curr_mid_pos)
+            if np.alltrue(dist < delta_t):
+                delta_t = end_pos - curr_mid_pos
+
+            # print("Current_mid_pos: ", curr_mid_pos)
+            # print("End_pos: ", end_pos)
+            # print("dist: ", dist)
+            # print("delta_t: ", delta_t)
+            # print("num_step: ", num_step)
+            # print("delta_move: ", self.delta_move)
+
+            actions = []
+            for j in range(self.num_picker):
+                if j == int(self.num_picker/2):
+                    # translation of center point
+                    actions.extend([*delta_t, action[4]])
+                    # print("step: ", [*delta_t, action[4]])
+                else:
+                    # translation and rotation of other points
+                    s, c = np.sin(delta_r), np.cos(delta_r)
+                    centered_pos = curr_pos[j][:] - curr_mid_pos
+                    r_t = [
+                        centered_pos[0]*np.cos(delta_r) - centered_pos[2]*np.sin(delta_r) - centered_pos[0], 
+                        0, 
+                        centered_pos[0]*np.sin(delta_r) + centered_pos[2]*np.cos(delta_r) - centered_pos[2]
+                    ]
+                    actions.extend([delta_t[0]+r_t[0], delta_t[1]+r_t[1], delta_t[2]+r_t[2], action[4]])
+            super().step(actions, ids=self.pusher_particles)
+            pyflex.step()
+            total_steps += 1
+            if self.env is not None and self.env.recording:
+                # print("recording in action_tool")
+                self.env.video_frames.append(self.env.render(mode='rgb_array'))
+            if np.alltrue(dist < self.delta_move):
+                break
+
+        self.ori = action[3]
+        self.pos = end_pos
+
+        return total_steps
+    
+    def unpick(self):
+        new_picker_pos, particle_pos = self._get_pos()
+        new_particle_pos = particle_pos.copy()
+
+        for i in range(self.num_picker):
+            if self.picked_particles[i] is not None:
+                new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
+                self.picked_particles[i] = None
+        
         self._set_pos(new_picker_pos, new_particle_pos)
+
+
+
+    def reset(self, pos):
+        """
+        center: [x,y,z,rot]
+        Update the position of middle picker as [x,y,z] other pickers as 
+        [x(dist, rot), y, z(dist, rot)]
+        """
+        # the number of pickers should be odd, and evenly distributed on the pusher.
+        # from left to right, pk0, pk1, ... pk_n-1; middle picker is int(num/2)
+        # dist of pk_k is 
+        # Thus, pos of pk_k is 
+        self.ori = pos[3]
+        self.pos = pos[:3]
+        
+        # pusher np.array([1, 0, 0]) parallel with x axis defined as 0 orientation angle(facing up)
+        s, c = np.sin(pos[3] - 0), np.cos(pos[3] - 0)
+        if self.num_picker > 1:
+            toX = np.array([1, 0, 0])*self.pusher_length/(self.num_picker-1)
+        else: 
+            toX = np.array([0, 0, 0])
+        # rotate the orientation
+        dist_dir = np.array([
+            toX[0]*c - toX[2]*s,
+            0,
+            toX[0]*s + toX[2]*c
+        ])
+
+        init_picker_poses = self._get_linear_picker_pos(pos[:3], dist_dir)
+
+        self.pusher_particles = []
+        for picker_pos in init_picker_poses:
+            # shape_id = pyflex.add_box(np.array([self.picker_radius, self.picker_radius, self.picker_radius]), picker_pos, [1, 0, 0, 0], 0)
+            shape_id = pyflex.add_sphere(self.picker_radius, picker_pos, [1, 0, 0, 0])
+            pyflex.set_shape_color(shape_id, self.color)
+            self.pusher_particles.append(shape_id)
+        pos = pyflex.get_shape_states()  # Need to call this to update the shape collision
+        pyflex.set_shape_states(pos)
+
+        self.particle_inv_mass = pyflex.get_positions().reshape(-1, 4)[:, 3]
+
+        self.picked_particles = [None] * self.num_picker
+
+    def set_pos(self, pos):
+        shape_states = np.array(pyflex.get_shape_states()).reshape(-1, 14)
+
+        self.ori = pos[3]
+        self.pos = pos[:3]
+
+        s, c = np.sin(pos[3] - 0), np.cos(pos[3] - 0)
+        toX = np.array([1, 0, 0])*self.pusher_length/(self.num_picker-1)
+        # rotate the orientation
+        dist_dir = np.array([
+            toX[0]*c - toX[2]*s,
+            0,
+            toX[0]*s + toX[2]*c
+        ])
+        init_picker_poses = self._get_linear_picker_pos(pos[:3], dist_dir)
+        # actions = []
+        for (i, picker_pos) in enumerate(init_picker_poses):
+            shape_states[self.pusher_particles[i], :3] = picker_pos
+            shape_states[self.pusher_particles[i], 3:6] = picker_pos
+            # actions.extend([*picker_pos, 0.0])
+        pyflex.set_shape_states(shape_states)
+
+        # super().step(actions)
+        pyflex.step()
+    
+        
+    def _get_linear_picker_pos(self, center, dist_dir):
+        pos = [center + (i - int(self.num_picker/2))*dist_dir for i in range(self.num_picker)]
+        return np.array(pos)
 
 
 class PickerPickPlace(Picker):
