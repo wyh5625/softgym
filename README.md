@@ -10,14 +10,15 @@
 ## User Guide
 Try pushing cloth with GUI:
 
-'''
+```
 python examples/Manual_ClothPush.py
-'''
+```
 
 Test RRT* planning by running: 
-'''
+
+```
 python examples/Control_ClothPush.py
-'''
+```
 
 ## Cite
 If you find this codebase useful in your research, please consider citing:
