@@ -145,6 +145,22 @@ public:
 //        g_buffers->rigidShapes.push_back(box);
 
 //        g_params.numPostCollisionIterations = 15;
+        // pyflex_MapShapeBuffers(g_buffers);
+
+        // auto ptr_halfEdge = (float *) halfEdge_.request().ptr;
+        // Vec3 halfEdge = Vec3(1, 0.1, 1);
+
+        // // auto ptr_center = (float *) center_.request().ptr;
+        // Vec3 center = Vec3(0, 0, 0);
+
+        // // auto ptr_quat = (float *) quat_.request().ptr;
+        // Quat quat = Quat(0, 0, 0, 1);
+
+        // // cout << "trigger is " << trigger << endl;
+        // int shape_id = AddBox(halfEdge, center, quat, 0);
+        // g_shape_color.push_back(Vec3(1.0f, 1.0f, 1.0f));
+
+        // pyflex_UnmapShapeBuffers(g_buffers);
 
     }
 

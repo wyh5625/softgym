@@ -5,7 +5,7 @@
 #include <list>
 #include <iterator>
 
-class SoftgymTshirt : public Scene
+class SoftgymLongSleeve : public Scene
 {
 public:
     float cam_x;
@@ -16,9 +16,9 @@ public:
     float cam_angle_z;
     int cam_width;
     int cam_height;
-    char tshirt_path[100];
+    char longsleeve_path[100];
 
-    SoftgymTshirt(const char* name) : Scene(name) {}
+    SoftgymLongSleeve(const char* name) : Scene(name) {}
 
     char* make_path(char* full_path, std::string path) {
         strcpy(full_path, getenv("PYFLEXROOT"));
@@ -74,7 +74,7 @@ public:
 
 
 
-    void createTshirt(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
+    void createLongSleeve(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
     {
         // import the mesh
         Mesh* m = ImportMesh(filename);
@@ -105,6 +105,7 @@ public:
 
         // index of particles
         uint32_t baseIndex = uint32_t(g_buffers->positions.size());
+        // printf("base_index: %d\n", g_buffers->positions.size());
         uint32_t currentIndex = baseIndex;
 
         // find unique vertices
@@ -124,6 +125,10 @@ public:
             uint32_t a = m->m_indices[i*3+0];
             uint32_t b = m->m_indices[i*3+1];
             uint32_t c = m->m_indices[i*3+2];
+
+            if (i == 0){
+                printf("first face: %d, %d, %d. \n", a, b, c);
+            }
 
             Point3& v0 = m->m_positions[a];
             Point3& v1 = m->m_positions[b];
@@ -336,9 +341,9 @@ public:
         float rot = 0;
 
 
-        createTshirt(make_path(tshirt_path, "/data/pants.obj"), Vec3(initX, initY, initZ), scaleX, rot, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
+        createLongSleeve(make_path(longsleeve_path, "/data/long_sleeve.obj"), Vec3(initX, initY, initZ), scaleX, rot, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
 
-        // createTshirt(make_path(tshirt_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
+        // createLongSleeve(make_path(longsleeve_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;

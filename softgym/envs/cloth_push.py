@@ -32,12 +32,18 @@ class ClothPushEnv(ClothEnv):
         self.constraints = constraints
         self.surface_height = 0
 
-        self.table_center = (0, -0.9)
-        self.table_size = (1.4, 1.0)
+        
+        self.table_size = (0, 0, 0)
+        self.dist2table = 0
+
+        
 
         if constraints:
-            self.surface_height = 0.0
+            self.table_size = (1.4, 0.0001, 0.8)
+            self.dist2table = 0.42
+            self.surface_height = self.table_size[1]
 
+        self.table_center = (0, -(self.dist2table + self.table_size[2]/2))
         self.init()
 
         self.inter_box_ids = []
@@ -47,12 +53,25 @@ class ClothPushEnv(ClothEnv):
         max_reachable = 1.1
 
     def set_start_state(self, t, r):
-        translation = np.array([t[0], 0, t[1]])
+        translation = np.array([t[0], t[1], t[2]])
         start_pos = self.transform_particles(self.init_pos, 
                             translation=translation, 
                             angle=r, 
                             center=np.mean(self.cornerPos_init, axis=0)[:3], 
                             set_position=True)
+        
+        self.init_pos = start_pos.copy()
+        
+        self.get_current_corner_pos()
+        self.cornerPos_init = self.cornerPos[:]
+        
+    def set_init_pos(self):
+        self.init_pos = pyflex.get_positions().reshape(-1, 4)
+
+    def camera_on_cloth(self):
+        center = self.get_center()
+        camera_pos = [center[0], 2.3, center[2]]
+        self.set_camera_pos(camera_pos)
 
     def init(self):
         self.config = self.get_default_config()
@@ -60,65 +79,75 @@ class ClothPushEnv(ClothEnv):
 
         self.update_camera(self.config['camera_name'], self.config['camera_params'][self.config['camera_name']])
 
-        # self.init_particles = pyflex.get_positions().reshape(-1, 4)
+        self.init_particles = pyflex.get_positions().reshape(-1, 4)
         self.get_corner_particles()
+
 
         self.default_pos = pyflex.get_positions().reshape(-1, 4)
         self.init_pos = self.default_pos.copy()
 
         self.get_current_corner_pos()
         mean = np.mean(self.cornerPos, axis=0)[:3]
+        # # mean[0] = 10
         self.init_pos[:, :3] -= mean
+        pyflex.set_positions(self.init_pos.flatten())
+        
 
-        self.init_pos[:, :3] += np.array([0, 2*self.surface_height, 0])
+        # self.init_pos[:, :3] += np.array([0, 2*self.surface_height, 0])
 
 
         if self.constraints:
             colors = [
+                [0, 0, 0],
                 [128, 128, 128],
-                [160, 160, 160]
-                # [1, 0, 0]
+                [160, 160, 160],
+                [140, 140, 140],
+                [ 90, 115, 165],
+                [255, 255, 255]
             ]
 
             # self.draw_workspace(1.4, 1)
 
-            # add a box in the scene
-            box_id = pyflex.add_box(np.array([self.table_size[0]/2, 0.0001, self.table_size[1]/2]), np.array([self.table_center[0], 0.0, self.table_center[1]]), np.array([0, 0, 0, 1]), 1)
+            # add a table box in the scene
+            box_id = pyflex.add_box(np.array([self.table_size[0]/2, self.table_size[1]/2, self.table_size[2]/2]), np.array([self.table_center[0], self.table_size[1]/2, self.table_center[1]]), np.array([0, 0, 0, 1]), 1)
             # state = pyflex.get_shape_states()[box_id]
             # box_state = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1], dtype=np.float32)
             # pyflex.set_shape_state(box_state, box_id)
-            pyflex.set_shape_color(box_id, np.array(colors[1])/255.0)
-            
+            pyflex.set_shape_color(box_id, np.array(colors[0])/255.0)
+
+            # add a background box
+            # box_id = pyflex.add_box(np.array([self.table_size[0]/2, self.table_size[1]/2, self.table_size[2]/2])*2, np.array([0, 1, 0]), np.array([self.table_center[0], self.table_size[1]/2, self.table_center[1]]), np.array([0, 0, 0, 1]), 1)
+            # pyflex.set_shape_color(box_id, np.array(colors[2])/255.0)
 
             # add robot arm base
-            robot_arm_pos = np.array([0.0, 0.0, 0.0])
-            robot_arm_size = np.array([0.1/2, 0.02, 0.1/2])
-            box_id = pyflex.add_box(robot_arm_size, robot_arm_pos, np.array([0, 0, 0, 1]), 0)
-            pyflex.set_shape_color(box_id, np.array(colors[0])/255.0)
+            # robot_arm_pos = np.array([0.0, 0.0, 0.0])
+            # robot_arm_size = np.array([0.1/2, 0.02, 0.1/2])
+            # box_id = pyflex.add_box(robot_arm_size, robot_arm_pos, np.array([0, 0, 0, 1]), 0)
+            # pyflex.set_shape_color(box_id, np.array(colors[0])/255.0)
             # print("robot arm box id: ", box_id)
 
-            # print("num of particle: ", pyflex.get_n_particles())
-            # print("num of shape: ", pyflex.get_n_shapes())
+        #     # print("num of particle: ", pyflex.get_n_particles())
+        #     # print("num of shape: ", pyflex.get_n_shapes())
             
-            # # print corner particle index
-            # print("corner particle index: ", self.cornerIdx)
+        #     # # print corner particle index
+        #     # print("corner particle index: ", self.cornerIdx)
 
-        for i in range(100):
-            pyflex.step()
+        # for i in range(100):
+        #     pyflex.step()
 
-        pyflex.set_positions(self.init_pos.flatten())
+        # pyflex.set_positions(self.init_pos.flatten())
 
-        for i in range(100):
-            pyflex.step()
+        # for i in range(100):
+        #     pyflex.step()
         
         self.get_current_corner_pos()
         self.cornerPos_init = self.cornerPos[:]
 
-        self.cornerCP_init = self.get_corner_side_contact_pose(self.cornerPos_init)
+        # self.cornerCP_init = self.get_corner_side_contact_pose(self.cornerPos_init)
 
-        # evenly sample 1/10 of the particles idx
-        num_particles = self.init_pos.shape[0]
-        self.sampled_particles_idx = np.random.choice(num_particles, int(num_particles / 10), replace=False)
+        # # evenly sample 1/10 of the particles idx
+        # num_particles = self.init_pos.shape[0]
+        # self.sampled_particles_idx = np.random.choice(num_particles, int(num_particles / 10), replace=False)
 
     def set_init_pos(self):
         pyflex.set_positions(self.init_pos.flatten())
@@ -308,7 +337,7 @@ class ClothPushEnv(ClothEnv):
         endA = push_center_3d - 0.5*self.action_tool.pusher_length*dist_dir
 
         endA_idx = self.get_touched_particle_idx(endA[0], endA[2])
-        endB_idx = self.get_touched_particle_idx(endB[0], endB[2])
+        endB_idx  = self.get_touched_particle_idx(endB[0], endB[2])
 
         # Use the two end points of pusher to find the orientation
         push_ori = self.action_tool.find_orientation(particle_pos[endA_idx,[0,2]], particle_pos[endB_idx,[0,2]])
@@ -424,6 +453,7 @@ class ClothPushEnv(ClothEnv):
 
         if set_position:
             pyflex.set_positions(new_pos)
+            pyflex.step()
 
         return new_pos
     
@@ -459,11 +489,11 @@ class ClothPushEnv(ClothEnv):
                                                           set_position=False)
         return cornerPos
     
-    def set_inter_corner(self, t, rot, draw=False):
+    def set_inter_corner(self, t, rot, draw=False, color=[255, 0, 0]):
         corners_m = self.get_corners_of_pos(t, rot)
 
         if draw:
-            self.draw_inter(t, rot)
+            self.draw_inter(t, rot, color=color)
             self.shoot_frame()
 
         pyflex.step()
@@ -489,7 +519,7 @@ class ClothPushEnv(ClothEnv):
 
         
 
-    def draw_inter(self, t, r):
+    def draw_inter(self, t, r, color=[255, 0, 0]):
         cnr_inter = self.get_corners_of_pos(t, r)
         num = len(cnr_inter)
         inter_box_initialized = True
@@ -501,6 +531,8 @@ class ClothPushEnv(ClothEnv):
             center = (cnr_inter[i] + cnr_inter[(i+1)%num])/2
             center[1] = 0
             height = np.linalg.norm(cnr_inter[i] - cnr_inter[(i+1)%num])
+            print("height: ", height)
+
 
             rot = -np.arctan2(cnr_inter[i][0] - cnr_inter[(i+1)%num][0], cnr_inter[i][2] - cnr_inter[(i+1)%num][2])
 
@@ -514,11 +546,12 @@ class ClothPushEnv(ClothEnv):
 
             if not inter_box_initialized:
                 box_id = pyflex.add_box(np.array([0.002, 0.0004, height/2]), center, quaternion, 1)
-                pyflex.set_shape_color(box_id, np.array([128, 0, 0])/255.0)
+                pyflex.set_shape_color(box_id, np.array(color)/255.0)
                 self.inter_box_ids.append(box_id)
             else:
                 box_state = np.array([center[0], 0.0001, center[2], center[0], 0.0001, center[2], quaternion[0], quaternion[1], quaternion[2], quaternion[3], quaternion[0], quaternion[1], quaternion[2], quaternion[3]], dtype=np.float32)
                 pyflex.set_shape_state(box_state, self.inter_box_ids[i])
+                pyflex.set_shape_color(self.inter_box_ids[i], np.array(color)/255.0)
                 pyflex.step()
 
     def remove_inter(self):
@@ -581,10 +614,21 @@ class ClothPushEnv(ClothEnv):
                 pyflex.step()
         
 
-        
+    def get_center_offset(self):
+        real_center = np.mean(self.cornerPos, axis=0)
+        # get bounding box
+        min_x = np.min(self.cornerPos[:, 0])
+        max_x = np.max(self.cornerPos[:, 0])
+        min_z = np.min(self.cornerPos[:, 2])
+        max_z = np.max(self.cornerPos[:, 2])
+        # center of bounding box
+        rrt_center = np.array([(min_x + max_x)/2, 0, (min_z + max_z)/2])
+        # offset of real center to rrt center
+        offset = real_center - rrt_center
+        return offset
         
 
-    def set_target_corner(self, t, rot):
+    def set_target_corner(self, t, rot, draw_target=False):
         # print("set target corner: ", t, rot)
         # self.get_current_corner_pos()
         # print("Center: ", np.mean(self.cornerPos_init, axis=0))
@@ -615,7 +659,10 @@ class ClothPushEnv(ClothEnv):
         # center[1] = 0
         # self.box_id = pyflex.add_box(np.array([width/2, 0.0001, height/2]), center, quaternion, 1)
         
-        self.draw_target(self.target_cornersPos)
+        if draw_target:
+            self.draw_target(self.target_cornersPos)
+
+        # print("center: ", np.mean(self.init_pos, axis=0)[:3])
 
         # target particle pos
         self.t_pos = self.transform_particles(self.init_pos, 
@@ -686,7 +733,7 @@ class ClothPushEnv(ClothEnv):
 
     def get_center(self):
         self.get_current_corner_pos()
-        return np.mean(self.cornerPos, axis=0)
+        return np.mean(self.cornerPos, axis=0)[:3]
     
     
 
@@ -792,11 +839,6 @@ class ClothPushEnv(ClothEnv):
     
 
     def init_pusher(self, pos):
-        # pos: [x, y, z, rot]
-        # action = np.array([*pos, 0.0])
-        # curr_pos = pyflex.get_positions()
-        # cx, cy = self._get_center_point(curr_pos)
-        # self.action_tool.reset([cx, 0.02, cy, np.pi/6])
         self.action_tool.reset(pos)
 
     def set_pusher(self, pos):
@@ -812,9 +854,6 @@ class ClothPushEnv(ClothEnv):
         # [x, y, z, rot, pick/drop]
         # init scene
         # default_config = self.get_default_config()
-
-        
-
         actions = [action]
         for action in actions:
             _, _, _, info = self.step(
@@ -832,7 +871,6 @@ class ClothPushEnv(ClothEnv):
                                              angle=(action[3]-pusher_pos[3]),
                                              center=pusher_pos[:3],
                                              set_position=False)
-        
         actions = [action]
         for action in actions:
             _, _, _, info = self.step(

@@ -88,16 +88,16 @@ def main():
 
     # push_pose = generate_pusher_poses(env)[0]
 
-    push_poses = env.generate_pusher_poses()
-    pp = push_poses[7]
+    # push_poses = env.generate_pusher_poses()
+    # pp = push_poses[7]
 
-    particle_pos = env._get_flat_pos()
-    # pusher_pos = np.array([*particle_pos[pp[0]], pp[1]])
-    pusher_pos = [-0.18749998229387188, 0.001, 0.27063556833560654, 0]
+    # particle_pos = env._get_flat_pos()
+    # # pusher_pos = np.array([*particle_pos[pp[0]], pp[1]])
+    # pusher_pos = [-0.18749998229387188, 0.001, 0.27063556833560654, 0]
 
     
-    # print(pusher_pos)
-    env.init_pusher(pusher_pos)
+    # # print(pusher_pos)
+    # env.init_pusher(pusher_pos)
 
     # pyflex.draw_rect(*[0.0, 0.0, 2.0, 2.0], [0.0, 0.0, 0.0])
     
