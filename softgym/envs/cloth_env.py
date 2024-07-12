@@ -104,17 +104,17 @@ class ClothEnv(FlexEnv):
         config = {
             'ClothPos': [0.01, 0.15, 0.01],
             # 48cm x 33cm
-            # 'ClothSize': [int(0.6 / particle_radius), int(0.36875 / particle_radius)],  # 0.6*0.36875
-            'ClothSize': [95, 59],
+            'ClothSize': [int(0.6 / particle_radius), int(0.36875 / particle_radius)],  # 0.6*0.36875
+            # 'ClothSize': [int(0.40 / particle_radius), int(0.24 / particle_radius)], # [95, 59]
             # 'ClothSize': [int(0.48 / particle_radius), int(0.33 / particle_radius)],
-            'ClothStiff': [2.8, 0.8, 0.8],  # Stretch, Bend and Shear
+            'ClothStiff': [2.8, 0.2, 0.8],  # Stretch, Bend and Shear
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
                                   {'pos': cam_pos,
                                    'angle': cam_angle,
                                    'width': camera_width,
                                    'height': camera_height}},
-            'mass': 0.05,
+            'mass': 0.01,
             'flip_mesh': 1,
             'drop_height': 0.5,
             'static_friction': 0.2,

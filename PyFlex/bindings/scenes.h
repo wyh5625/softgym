@@ -35,6 +35,7 @@ public:
 #include "softgym_scenes/softgym_rope.h"
 #include "softgym_scenes/softgym_pants.h"
 #include "softgym_scenes/softgym_long_sleeve.h"
+#include "softgym_scenes/softgym_tshirts.h"
 
 #include "scenes/adhesion.h"
 #include "scenes/armadilloshower.h"

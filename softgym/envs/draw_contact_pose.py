@@ -99,6 +99,7 @@ def find_concave_corners(vertices):
 
     return concave_corners
 
+# outdated, the content format in txt is not correct
 def show(model_name):
     shape_path = model_folder + model_name + ".txt"
 
@@ -222,6 +223,33 @@ def sort_boundary(corner_particles, boundary_edges):
 
     return sorted_corners, sorted_boundary
 
+def find_corner_and_segments_rec(cloth_dimx, cloth_dimy):
+    # config = self.get_default_config()
+    # cloth_dimx, cloth_dimy = config['ClothSize']
+    cornerIdx = []
+    cornerIdx.append(cloth_dimx * cloth_dimy - 1)
+    cornerIdx.append(cloth_dimx-1)
+    cornerIdx.append(0)
+    cornerIdx.append(cloth_dimx*(cloth_dimy-1))
+
+    corner_particles_dict = {}
+
+    for corner_index in cornerIdx:
+        # Get the range of indices related to the edge particles
+        if corner_index == 0:
+            edge_particles = list(range(0, cloth_dimx * (cloth_dimy - 1), cloth_dimx))
+        elif corner_index == cloth_dimx-1:
+            edge_particles = list(range(corner_index, 0, -1))
+        elif corner_index == cloth_dimx * cloth_dimy - 1:
+            edge_particles = list(range(corner_index, cloth_dimx-1, -cloth_dimx))
+        elif corner_index == cloth_dimx * (cloth_dimy - 1):
+            edge_particles = list(range(corner_index, cloth_dimx * cloth_dimy - 1))
+
+        corner_particles_dict[corner_index] = edge_particles
+
+    return corner_particles_dict
+
+
 def find_corner_and_segments(model_path):
     # Read the OBJ file and extract vertices and faces
     vertices = []  # List to store vertices
@@ -269,7 +297,7 @@ def find_corner_and_segments(model_path):
     # Extract the coordinates of boundary vertices
     boundary_coordinates = [vertices[i - 1] for i in boundary_vertices]
 
-    threshold_angle = 15
+    threshold_angle = 10
     corner_particles = set()
 
     angles = []

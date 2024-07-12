@@ -309,6 +309,7 @@ class Pusher(Picker):
                     actions.extend([delta_t[0]+r_t[0], delta_t[1]+r_t[1], delta_t[2]+r_t[2], action[4]])
             super().step(actions, ids=self.pusher_particles)
             pyflex.step()
+            # super().set_static_velocity()
             total_steps += 1
             if self.env is not None and self.env.recording:
                 # print("recording in action_tool")

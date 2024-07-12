@@ -44,7 +44,8 @@ class ClothPushEnv(ClothEnv):
             self.surface_height = self.table_size[1]
 
         self.table_center = (0, -(self.dist2table + self.table_size[2]/2))
-        self.init()
+        self.init_scene()
+        self.init_particles()
 
         self.inter_box_ids = []
         self.target_box_ids = []
@@ -60,10 +61,10 @@ class ClothPushEnv(ClothEnv):
                             center=np.mean(self.cornerPos_init, axis=0)[:3], 
                             set_position=True)
         
-        self.init_pos = start_pos.copy()
+        self.start_pos = start_pos.copy()
         
         self.get_current_corner_pos()
-        self.cornerPos_init = self.cornerPos[:]
+        self.cornerPos_start = self.cornerPos[:]
         
     def set_init_pos(self):
         self.init_pos = pyflex.get_positions().reshape(-1, 4)
@@ -73,25 +74,11 @@ class ClothPushEnv(ClothEnv):
         camera_pos = [center[0], 2.3, center[2]]
         self.set_camera_pos(camera_pos)
 
-    def init(self):
+    def init_scene(self):
         self.config = self.get_default_config()
         self.set_scene(self.config)
 
         self.update_camera(self.config['camera_name'], self.config['camera_params'][self.config['camera_name']])
-
-        self.init_particles = pyflex.get_positions().reshape(-1, 4)
-        self.get_corner_particles()
-
-
-        self.default_pos = pyflex.get_positions().reshape(-1, 4)
-        self.init_pos = self.default_pos.copy()
-
-        self.get_current_corner_pos()
-        mean = np.mean(self.cornerPos, axis=0)[:3]
-        # # mean[0] = 10
-        self.init_pos[:, :3] -= mean
-        pyflex.set_positions(self.init_pos.flatten())
-        
 
         # self.init_pos[:, :3] += np.array([0, 2*self.surface_height, 0])
 
@@ -140,14 +127,30 @@ class ClothPushEnv(ClothEnv):
         # for i in range(100):
         #     pyflex.step()
         
-        self.get_current_corner_pos()
-        self.cornerPos_init = self.cornerPos[:]
-
+        
         # self.cornerCP_init = self.get_corner_side_contact_pose(self.cornerPos_init)
 
         # # evenly sample 1/10 of the particles idx
         # num_particles = self.init_pos.shape[0]
         # self.sampled_particles_idx = np.random.choice(num_particles, int(num_particles / 10), replace=False)
+
+    def init_particles(self):
+        self.init_particles = pyflex.get_positions().reshape(-1, 4)
+        self.get_corner_particles()
+
+
+        self.default_pos = pyflex.get_positions().reshape(-1, 4)
+        self.init_pos = self.default_pos.copy()
+
+        self.get_current_corner_pos()
+        mean = np.mean(self.cornerPos, axis=0)[:3]
+        # # mean[0] = 10
+        self.init_pos[:, :3] -= mean
+        pyflex.set_positions(self.init_pos.flatten())
+
+        self.get_current_corner_pos()
+        self.cornerPos_init = self.cornerPos[:]
+
 
     def set_init_pos(self):
         pyflex.set_positions(self.init_pos.flatten())
@@ -483,9 +486,9 @@ class ClothPushEnv(ClothEnv):
 
     def get_corners_of_pos(self, t, rot):
         translation = np.array([t[0], 0, t[1]])
-        cornerPos = self.transform_particles(self.cornerPos_init, translation=translation,
+        cornerPos = self.transform_particles(self.cornerPos_start, translation=translation,
                                                           angle=rot,
-                                                          center=np.mean(self.cornerPos_init, axis=0)[:3],
+                                                          center=np.mean(self.cornerPos_start, axis=0)[:3],
                                                           set_position=False)
         return cornerPos
     
@@ -545,7 +548,7 @@ class ClothPushEnv(ClothEnv):
             quaternion = rotation.as_quat()
 
             if not inter_box_initialized:
-                box_id = pyflex.add_box(np.array([0.002, 0.0004, height/2]), center, quaternion, 1)
+                box_id = pyflex.add_box(np.array([0.005, 0.0004, height/2]), center, quaternion, 1)
                 pyflex.set_shape_color(box_id, np.array(color)/255.0)
                 self.inter_box_ids.append(box_id)
             else:
@@ -554,11 +557,43 @@ class ClothPushEnv(ClothEnv):
                 pyflex.set_shape_color(self.inter_box_ids[i], np.array(color)/255.0)
                 pyflex.step()
 
+        # draw the bar of rectangle cloth on the shape
+        if num == 4:
+            # center of the bar is the center of line connecting 2/8 of top and bottom sides
+            ratio = 1.0/8
+            endA = (1-ratio)*cnr_inter[3] + ratio*cnr_inter[0]
+            endB = (1-ratio)*cnr_inter[2] + ratio*cnr_inter[1]
+            center = (endA + endB)/2
+            center[1] = 0.0001
+
+            rot = -np.arctan2(endA[0] - endB[0], endA[2] - endB[2])
+
+            axis = np.array([0, -1, 0])
+            rotation = Rotation.from_rotvec(rot * axis)
+            # Convert the Rotation object to a quaternion
+            quaternion = rotation.as_quat()
+            
+            if not inter_box_initialized:
+                box_id = pyflex.add_box(np.array([0.005, 0.0001, np.linalg.norm(endA - endB)/2]), center, quaternion, 1)
+                pyflex.set_shape_color(box_id, np.array(color)/255.0)
+                self.inter_box_ids.append(box_id)
+            else:
+                box_state = np.array([center[0], center[1], center[2], center[0], 0.0001, center[2], quaternion[0], quaternion[1], quaternion[2], quaternion[3], quaternion[0], quaternion[1], quaternion[2], quaternion[3]], dtype=np.float32)
+                pyflex.set_shape_state(box_state, self.inter_box_ids[-1])
+                pyflex.set_shape_color(self.inter_box_ids[-1], np.array(color)/255.0)
+                pyflex.step()
+
+
     def remove_inter(self):
         # for box_id in self.inter_box_ids:
         #     pyflex.pop_box(box_id)
         pyflex.pop_box(len(self.inter_box_ids))
         self.inter_box_ids = []
+        pyflex.step()
+
+    def remove_target(self):
+        pyflex.pop_box(len(self.target_box_ids))
+        self.target_box_ids = []
         pyflex.step()
         
     def draw_target(self, cornerPos):
@@ -592,10 +627,10 @@ class ClothPushEnv(ClothEnv):
         if num == 4:
             # center of the bar is the center of line connecting 2/8 of top and bottom sides
             ratio = 1.0/8
-            endA = (1-ratio)*cornerPos[0] + ratio*cornerPos[1]
-            endB = (1-ratio)*cornerPos[3] + ratio*cornerPos[2]
+            endA = (1-ratio)*cornerPos[3] + ratio*cornerPos[0]
+            endB = (1-ratio)*cornerPos[2] + ratio*cornerPos[1]
             center = (endA + endB)/2
-            center[1] -= 0.001
+            center[1] = 0.0001
 
             rot = -np.arctan2(endA[0] - endB[0], endA[2] - endB[2])
 
@@ -611,6 +646,7 @@ class ClothPushEnv(ClothEnv):
             else:
                 box_state = np.array([center[0], center[1], center[2], center[0], 0.0001, center[2], quaternion[0], quaternion[1], quaternion[2], quaternion[3], quaternion[0], quaternion[1], quaternion[2], quaternion[3]], dtype=np.float32)
                 pyflex.set_shape_state(box_state, self.target_box_ids[-1])
+                pyflex.set_shape_color(self.target_box_ids[-1], np.array([0, 153, 0])/255.0)
                 pyflex.step()
         
 
@@ -634,10 +670,10 @@ class ClothPushEnv(ClothEnv):
         # print("Center: ", np.mean(self.cornerPos_init, axis=0))
         
         translation = np.array([t[0], 0, t[1]])
-        self.target_cornersPos = self.transform_particles(self.cornerPos_init, translation=translation,
+        self.target_cornersPos = self.transform_particles(self.cornerPos_start, translation=translation,
                                                           angle=rot,
                                                           center=np.mean(
-                                                              self.cornerPos_init, axis=0),
+                                                              self.cornerPos_start, axis=0),
                                                           set_position=False)
         
         # center = np.mean(self.target_cornersPos, axis=0)
@@ -665,10 +701,10 @@ class ClothPushEnv(ClothEnv):
         # print("center: ", np.mean(self.init_pos, axis=0)[:3])
 
         # target particle pos
-        self.t_pos = self.transform_particles(self.init_pos, 
+        self.t_pos = self.transform_particles(self.start_pos, 
                             translation=translation, 
                             angle=rot, 
-                            center=np.mean(self.cornerPos_init, axis=0)[:3], 
+                            center=np.mean(self.cornerPos_start, axis=0)[:3], 
                             set_position=False)
         
 
@@ -687,27 +723,47 @@ class ClothPushEnv(ClothEnv):
 
     # pos_a is assumed to be the reference
     def CD(self, pos_a, pos_b):
-        pos_a_sampled = pos_a[self.sampled_particles_idx]
-        pos_b_sampled = pos_b[self.sampled_particles_idx]
+        total_distance = 0
+
+        # Calculate the minimum distance from each point in pos_a to pos_b
+        for point_a in pos_a:
+            distances = np.linalg.norm(pos_b - point_a, axis=1)
+            min_distance = np.min(distances)
+            total_distance += min_distance
+
+        # Calculate the minimum distance from each point in pos_b to pos_a
+        for point_b in pos_b:
+            distances = np.linalg.norm(pos_a - point_b, axis=1)
+            min_distance = np.min(distances)
+            total_distance += min_distance
+
+        # Normalize the sum by dividing it by the total number of points
+        num_points = len(pos_a) + len(pos_b)
+        chamfer_distance = total_distance / num_points
+
+        return chamfer_distance
+
+    # def CD(self, pos_a, pos_b):
+    #     pos_a_sampled = pos_a[self.sampled_particles_idx]
+    #     pos_b_sampled = pos_b[self.sampled_particles_idx]
 
 
-        # Assume you have two sets of points: source_points and target_points
-        # source_points = np.array([[x1, y1], [x2, y2], ...])  # Your source points
-        # target_points = np.array([[x1, y1], [x2, y2], ...])  # Your target points
+    #     # Assume you have two sets of points: source_points and target_points
+    #     # source_points = np.array([[x1, y1], [x2, y2], ...])  # Your source points
+    #     # target_points = np.array([[x1, y1], [x2, y2], ...])  # Your target points
 
-        # Apply Procrustes analysis to align the source points with the target points
-        aligned_source_points, _, disparity = procrustes(pos_a_sampled, pos_b_sampled)
-        # print("Aligned Source Points:", aligned_source_points)
+    #     # Apply Procrustes analysis to align the source points with the target points
+    #     aligned_source_points, _, disparity = procrustes(pos_a_sampled, pos_b_sampled)
+    #     # print("Aligned Source Points:", aligned_source_points)
 
-        # Calculate the Chamfer distance between the aligned source points and target points
-        # chamfer_distance = np.sum(np.min(np.linalg.norm(aligned_source_points - pos_a_sampled, axis=1)))
-        # distances = np.linalg.norm(aligned_source_points - pos_a_sampled, axis=2)
-        # chamfer_distance = np.sum(np.min(distances, axis=1)) + np.sum(np.min(distances, axis=0))
-        print("Procrustes disparity:", disparity)
+    #     # Calculate the Chamfer distance between the aligned source points and target points
+    #     chamfer_distance = np.sum(np.min(np.linalg.norm(aligned_source_points - pos_a_sampled, axis=1)))
+    #     # distances = np.linalg.norm(aligned_source_points - pos_a_sampled, axis=2)
+    #     # chamfer_distance = np.sum(np.min(distances, axis=1)) + np.sum(np.min(distances, axis=0))
+    #     print("Procrustes disparity:", disparity)
 
 
-        return disparity
-
+    #     return disparity
 
     def EMD(self, pos_a, pos_b):
         # create weights, a number of 1s equal to the number of particles

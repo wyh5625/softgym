@@ -5,7 +5,7 @@
 #include <list>
 #include <iterator>
 
-class SoftgymLongSleeve : public Scene
+class SoftgymTShirts : public Scene
 {
 public:
     float cam_x;
@@ -16,9 +16,9 @@ public:
     float cam_angle_z;
     int cam_width;
     int cam_height;
-    char longsleeve_path[100];
+    char pants_path[100];
 
-    SoftgymLongSleeve(const char* name) : Scene(name) {}
+    SoftgymTShirts(const char* name) : Scene(name) {}
 
     char* make_path(char* full_path, std::string path) {
         strcpy(full_path, getenv("PYFLEXROOT"));
@@ -74,7 +74,7 @@ public:
 
 
 
-    void createLongSleeve(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
+    void createTShirts(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
     {
         // import the mesh
         Mesh* m = ImportMesh(filename);
@@ -88,6 +88,7 @@ public:
 
         // rotate mesh
         m->Transform(RotationMatrix(3.1415, Vec3(0.0f, 0.0f, 1.0f)));
+        m->Transform(RotationMatrix(3.1415/2, Vec3(1.0f, 0.0f, 0.0f)));
 
         m->Transform(RotationMatrix(rotation, Vec3(0.0f, 1.0f, 0.0f)));
 
@@ -341,9 +342,9 @@ public:
         float rot = 0;
 
 
-        createLongSleeve(make_path(longsleeve_path, "/data/long_sleeve.obj"), Vec3(initX, initY, initZ), scaleX, rot, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
+        createTShirts(make_path(pants_path, "/data/t-shirt.obj"), Vec3(initX, initY, initZ), scaleX, rot, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
 
-        // createLongSleeve(make_path(longsleeve_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
+        // createTShirts(make_path(pants_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;

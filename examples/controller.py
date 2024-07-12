@@ -1,9 +1,15 @@
 import numpy as np
 import datetime
-
+import pyflex
 
 hang_height = 0.05
 
+
+def set_static_velocity():
+    """ Set the velocity of the cloth to be static """
+    velocities = np.array(pyflex.get_velocities())
+    velocities = np.zeros_like(velocities)
+    pyflex.set_velocities(velocities)
 
 def generate_push_actions(start_pos, target_pos, circular_rate=0.0, center_side=1, path_side=1, waypoint_size=1):
     # circular_rate is [0, 1], radius of path R = R_min / circular_rate(or cos(theta)), larger circular_rate, smaller R
@@ -63,10 +69,25 @@ def generate_push_actions(start_pos, target_pos, circular_rate=0.0, center_side=
 
     return actions
 
+def handover(env):
+    env.action_tool.delta_move = 0.004
 
-def execute_a_push_action(env, push_start, push_end, contact_pose=None, primary=False, with_standby=False):
+    curr_pose = env.get_pusher_pos()
+
+    if curr_pose[1] < hang_height:
+        curr_pose[1] = hang_height
+
+    # hang_over = np.append(hang_over, 0)
+
+        curr_pose = np.append(curr_pose, 0)
+
+        env.push(curr_pose)
+
+def execute_a_push_action(env, push_start, push_end, contact_pose=None, primary=False, with_standby=False, sliding_speed=0.002):
     # push_start += np.array([0, env.surface_height, 0, 0])
     # push_end += np.array([0, env.surface_height, 0, 0])
+
+    handover(env)
 
     # global step, time_eplapsed
 
@@ -100,7 +121,7 @@ def execute_a_push_action(env, push_start, push_end, contact_pose=None, primary=
         # time_eplapsed += datetime.datetime.now() - time_prev
 
     # g_dt = 0.01s, the time interval of each step in the simulation, so 0.002/0.01 = 0.2 m/s
-    env.action_tool.delta_move = 0.002
+    env.action_tool.delta_move = sliding_speed
 
 
     push_end_action = np.append(push_end, 1)
@@ -146,19 +167,30 @@ def execute_a_push_action(env, push_start, push_end, contact_pose=None, primary=
 
     # env.push(push_action)
 
-    env.action_tool.delta_move = 0.004
-    # move back to standby pose
-    if with_standby:
-        standby_pusher_pos = np.append(standby_pusher_pos, 0)
+    for i in range(50):
+        pyflex.step()
+    
 
-        time_prev = datetime.datetime.now()
-        env.push(standby_pusher_pos)
-        # time_eplapsed += datetime.datetime.now() - time_prev
-    else:
-        hang_over = push_end + np.array([0, hang_height, 0, 0])
-        # hang_over = np.append(hang_over, 0)
-        hang_over = np.append(hang_over, 0)
+    # env.action_tool.delta_move = 0.004
+    # # move back to standby pose
+    # if with_standby:
+    #     standby_pusher_pos = np.append(standby_pusher_pos, 0)
 
-        time_prev = datetime.datetime.now()
-        env.push(hang_over)
+    #     time_prev = datetime.datetime.now()
+    #     env.push(standby_pusher_pos)
+    #     # time_eplapsed += datetime.datetime.now() - time_prev
+    # else:
+    #     hang_over = push_end + np.array([0, hang_height, 0, 0])
+    #     # hang_over = np.append(hang_over, 0)
+    #     hang_over = np.append(hang_over, 0)
+
+    #     time_prev = datetime.datetime.now()
+    #     env.push(hang_over)
         # time_eplapsed += datetime.datetime.now() - time_prev
+    # handover(env)
+
+    # set_static_velocity()
+
+    # for i in range(50):
+    #     pyflex.step()
+

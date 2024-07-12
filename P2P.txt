@@ -1,0 +1,6 @@
+Allowance: 0.01 IOU Threshold: 0.5 Max Actions: 5
+IOUs: 0.43689 0.642778 0.649462 0.814536 0.880715 
+avg_dist: 0.0185189
+Num of actions: 5
+Running time of robot: 68.8562
+Success: 0

@@ -21,7 +21,7 @@ class State:
 control_type = "TshirtPushPPP"
 
 w1 = 1  # distance
-w2 = 10  # deformation
+w2 = 0  # deformation
 
 # delta is usuaully smaller then B
 delta = [0.1, 0.1, 0.2]  # x, y, theta
@@ -66,7 +66,7 @@ def matrix_to_coordinate(transformation_matrix):
 
 
 class MG_RRTStar:
-    def __init__(self, start, goal, max_iterations=400, goal_tolerance=0.02):
+    def __init__(self, start, goal, max_iterations=2000, goal_tolerance=0.05):
         self.start = State(start)
         self.goal = State(goal)
         self.max_iterations = max_iterations
@@ -75,7 +75,7 @@ class MG_RRTStar:
         self.start.cost = 0
         self.nodes = [self.start]
 
-        self.goal_rate = 0.02
+        self.goal_rate = 0.06
 
         self.constrained = False
 
@@ -87,7 +87,7 @@ class MG_RRTStar:
         self.U = []
 
         # step_box
-        self.B = [0.2, 0.2, 0.8]
+        self.B = [0.4, 0.4, 0.8]
 
     # set the center of table and size, relative to robot
     def set_constraints(self, table_center=(0, -0.9), table_size=(1, 1), reachable_length=1.1, object_size=(0.6, 0.36), object_center_offset=(0, 0)):
@@ -140,12 +140,13 @@ class MG_RRTStar:
         for idx, g_key in enumerate(grouped.groups.keys()):
             group = grouped.get_group(g_key).reset_index(drop=True)
             self.cp_dict[idx] = g_key
-            print(g_key)
+            # print(g_key)
             if g_key in ignore_cp:
                 continue
             for index, row in group.iterrows():
+                # if row['deformation'] < 0.1:
                 self.U.append(
-                    (g_key, [row['trans_x'], row['trans_y'], row['rot'], row['deformation']]))
+                        (g_key, [row['trans_x'], row['trans_y'], row['rot'], row['deformation']]))
 
         # (-0.29374998807907104, -0.11874999850988388, 1.5707963267948966)
         # (-0.29374998807907104, 2.7755575615628914e-17, 1.5707963267948966)
@@ -247,7 +248,16 @@ class MG_RRTStar:
         s2_tilde = [(pos_2[0] - limit[0][0])/(limit[0][1] - limit[0][0]),
                     (pos_2[1] - limit[1][0])/(limit[1][1] - limit[1][0]),
                     (pos_2[2] - limit[2][0])/(limit[2][1] - limit[2][0])]
+        # euclidean_dist = math.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
+        # rot_dist = abs(pos_1[2] - pos_2[2])
+        # dist = 0.1*rot_dist/euclidean_dist + 0.9*euclidean_dist
         return 0.1*math.sqrt((s1_tilde[0] - s2_tilde[0]) ** 2 + (s1_tilde[1] - s2_tilde[1]) ** 2) + 0.9*abs(s1_tilde[2] - s2_tilde[2])
+
+    def distance2(self, pos_1, pos_2):
+        euclidean_dist = math.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
+        rot_dist = abs(pos_1[2] - pos_2[2])
+        dist = rot_dist/euclidean_dist
+        return dist
 
     def nearest(self, state):
         distances = [self.distance(state.pos, n.pos) for n in self.nodes]
@@ -312,12 +322,31 @@ class MG_RRTStar:
                                    for (cp_id, u, s_transform) in control_set]
         closest_u_idx = np.argmin(distances)
         control = control_set[closest_u_idx]
+        
 
+        # print("length of control set: ", len(control_set))
+        # print("closest_u_idx: ", closest_u_idx)
+
+        # if len(control_set) == 585:
+        #     print("distance of 60: ", distances[60])
+        #     print("distance of 155: ", distances[155])
+        # if s2.cp_id == -1:
+        #     # print("len of control set: ", len(control_set))
+        #     # print("control_set[60]: ", control_set[60])
+        #     # print("control_set[155]: ", control_set[155])
+        #     # print first 5 elements of control_set
+        #     for i in range(5):
+        #         print("control_set[", i, "]: ", control_set[i])
+        #         print("distance: ", distances[i])
+        #     print("Limite: ", limit)
         # u_new_w = np.dot(rotation_matrix, u_new[2])
 
         # Find the closest state to s1 + u_new
 
         s_new = self.f(s1, control)
+
+        # print("steer from ", s1.pos, " to ", s2.pos, " with cp_id: ", control[0])
+        # print("s2 cp_id: ", s2.cp_id)
 
         # if the same contact pose, just extend a M, else extend a composite action (GMR + Refinement)
         return s_new, control
@@ -363,7 +392,16 @@ class MG_RRTStar:
     def near_vertices(self, n):
         # find the neighbors of the new node that is within B = [1,1,1] of the new node, where B specify helf length of the box
         neighbors = []
+        # print("num of nodes: ", len(self.nodes))
         for node in self.nodes:
+            # print("node pos: ", node.pos)
+            # if abs(node.pos[0] - n.pos[0]) <= self.B[0] and abs(node.pos[1] - n.pos[1]) <= self.B[1] and abs(node.pos[2] - n.pos[2]) <= self.B[2]:
+            #     neighbors.append(node)
+            # dist = self.distance(node.pos, n.pos)
+            # if self.distance2(node.pos, n.pos) < 0.1:
+            #     neighbors.append(node)
+            # if abs(node.pos[2] - n.pos[2]) < 1.57 and self.distance2(node.pos, n.pos) < 10:
+            #     neighbors.append(node)
             if abs(node.pos[0] - n.pos[0]) <= self.B[0] and abs(node.pos[1] - n.pos[1]) <= self.B[1] and abs(node.pos[2] - n.pos[2]) <= self.B[2]:
                 neighbors.append(node)
         return neighbors
@@ -417,12 +455,13 @@ class MG_RRTStar:
             dist = dist1 + dist2
         # print("dist: ", dist)
         # print("deformation: ", state2.control[1][3])
-        return w1*dist + w2*state2.control[1][3]
+        return w1 + w2*state2.control[1][3]
+        # return 1
 
     def plan(self):
         
         for i in range(self.max_iterations):
-            print("Iteration: ", i)
+            # print("Iteration: ", i)
             # sample a random state
             # self.goal_rate of sample the goal state
             if random.random() < self.goal_rate:
@@ -436,6 +475,7 @@ class MG_RRTStar:
 
             # steer from the nearest node to the random state
             s_new, u_new = self.steer(s_nearest, s_rand)
+            # print("s_new: ", s_new.pos)
 
             # check if the new node is within the configuration space
             if self.constrained and not self.within_cs(s_new):
@@ -450,7 +490,8 @@ class MG_RRTStar:
             # extend the tree
             for s_near in S_near:
                 s_new_, u_new_ = self.steer(s_near, s_new)
-                new_cost = s_near.cost + self.c(s_near, s_new_)
+                # new_cost = s_near.cost + self.c(s_near, s_new_)
+                new_cost = s_near.cost + 1
                 if self.close(s_new_, s_new) and (not self.constrained or self.within_cs(s_new_)) and new_cost < J_min:
                     # print("reconnect--")
                     J_min = new_cost
@@ -472,7 +513,8 @@ class MG_RRTStar:
                 cost_add = self.c(s_add, s_near_)
 
                 # if u_near_[0] == s_add.cp_id, then moving distance from same cp
-                new_cost = s_add.cost + cost_add
+                # new_cost = s_add.cost + cost_add
+                new_cost = s_add.cost + 1
 
                 # new_cost = s_add.cost + w2 if u_near_[0] == s_add.cp_id else s_add.cost + w0 + w1 + w2
                 if self.close(s_near_, s_near) and (not self.constrained or self.within_cs(s_near_)) and new_cost < s_near.cost:
@@ -511,7 +553,7 @@ class MG_RRTStar:
         for node in close_nodes:
             print("node pos: ", node.pos)
             print("node cost: ", node.cost)
-            if node.cost != 0 and node.cost < min_cost:
+            if node.cost < min_cost:
                 min_cost = node.cost
                 min_node = node
 
@@ -520,6 +562,7 @@ class MG_RRTStar:
         # back track to find the path
         path = []
         node = min_node
+
 
         if node is not None:
             # create a new node to store the goal state
@@ -540,6 +583,7 @@ class MG_RRTStar:
                 #     print("cp_ID: ", node.control[0], "control: ", node.control[1])
                 path.append(last_node)
                 last_node = last_node.parent
+
         
         path.reverse()
         return path, min_cost
@@ -564,6 +608,14 @@ def a_hard_code_path(self):
 def set_env(env_name):
     control_type = env_name
 
+def steer(node_s, node_t, cps, control_file, constraints):
+    n_s = State(node_s)
+    n_t = State(node_t)
+    rrt_star = MG_RRTStar(node_s, node_t)
+    rrt_star.set_cps(cps)
+    rrt_star.populate_control_space(control_file)
+    rrt_star.set_constraints(**constraints)
+    return rrt_star.steer(n_s, n_t)
 
 def plan(node_s, node_t, control_file, cps, constraints=None, save_plot=None, repeat=1):
     min_cost = float('inf')
@@ -585,9 +637,12 @@ def plan(node_s, node_t, control_file, cps, constraints=None, save_plot=None, re
         rrt_star.plan()
         this_path, cost = rrt_star.find_path()
 
-        if cost != 0 and cost < min_cost:
+        if cost < min_cost:
             min_cost = cost
             path = this_path
+
+        if len(path) < 5:
+            break
 
     print("Path length: ", len(path))
     # print state and control of path
@@ -643,7 +698,7 @@ def plan(node_s, node_t, control_file, cps, constraints=None, save_plot=None, re
 
     
 
-    plt.show()
+    # plt.show()
 
     # save the plot
     if save_plot is not None:
@@ -662,7 +717,7 @@ def plan(node_s, node_t, control_file, cps, constraints=None, save_plot=None, re
     for state in path:
         print("state: ", state.pos, "control: ", state.control)
 
-    path_ = [([*state.pos], None if state.control is None else state.control[0]) for state in path]
+    path_ = [([*state.pos], None if state.control is None else state.control[0], 0 if state.control is None else state.control[1][3]) for state in path]
 
     # substract each pose by node_s
     for i in range(len(path_)):
