@@ -10,7 +10,6 @@ Try picking cloth with GUI:
 python examples/control_cloth.py
 ```
 
-```
 
 ## Cite
 If you find this codebase useful in your research, please consider citing:
