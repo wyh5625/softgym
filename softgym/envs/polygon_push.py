@@ -44,6 +44,10 @@ Env_Setting = {
         'scene_id': 7,
         'sampling_ingore_cp': [0, 1, 2, 3, 4, 6, 8, 9, 11, 12, 14, 16, 17, 18, 19, 20, 21, 22, 23, 33, 34, 35],
         'action_file': 'control_long_sleeve_50cm_x.csv'
+    },
+    'TshirtPokeZp': {
+        'polygon_name': 'tshirt_poke_zp',
+        'scene_id': 8,
     }
 }
 

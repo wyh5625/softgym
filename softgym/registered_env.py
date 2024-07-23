@@ -12,6 +12,7 @@ from softgym.envs.cloth_push import ClothPushEnv
 from softgym.envs.pants_push import PantsPushEnv
 from softgym.envs.bimanual_tshirt import BimanualTshirtEnv
 from softgym.envs.polygon_push import PolygonPushEnv
+from softgym.envs.cloth_pick_and_drop import ClothPickAndDropEnv
 
 from collections import OrderedDict
 
@@ -215,6 +216,18 @@ env_arg_dict = {
                         'num_variations': 1000,
                         'use_cached_states': False,
                         'deterministic': False},
+
+    'ClothPickAndDrop': {'observation_mode': 'cam_rgb',
+                        'action_mode': 'picker',
+                        'num_picker': 1,
+                        'render': True,
+                        'headless': True,
+                        'horizon': 20,
+                        'action_repeat': 1,
+                        'render_mode': 'cloth',
+                        'num_variations': 1000,
+                        'use_cached_states': False,
+                        'deterministic': False},
 }
 
 SOFTGYM_ENVS = OrderedDict({
@@ -232,5 +245,6 @@ SOFTGYM_ENVS = OrderedDict({
     'RopeConfiguration': RopeConfigurationEnv,
     'ClothPushPPP': ClothPushEnv,
     'PantsPushPPP': PantsPushEnv,
-    'PolygonPushPPP': PolygonPushEnv
+    'PolygonPushPPP': PolygonPushEnv,
+    'ClothPickAndDrop': ClothPickAndDropEnv
 })

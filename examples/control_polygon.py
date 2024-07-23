@@ -89,8 +89,7 @@ def take_pictures(env):
     
 
     start_pose = [0, 0, 0]
-
-    target_pose = [0.22, 0.07, np.deg2rad(-170)] # relative to start_pose
+    target_pose = [0.3, 0.1, np.deg2rad(68)] # relative to start_pose
     env.set_start_state([start_pose[0] + env.table_center[0], env.table_size[1], start_pose[1] + env.table_center[1]], start_pose[2])
     
     env.camera_on_cloth()
@@ -330,9 +329,9 @@ def exp(env, target, method=0):
 
 if __name__ == '__main__':
     env = create_env(model_name="LongSleeve", contstrained=True)
-    # test_function(env)
+    test_function(env)
     # test_sample_action(env)
-    take_pictures(env)
+    # take_pictures(env)
     # get argue from command line
     # method = int(sys.argv[1])
 
@@ -403,7 +402,7 @@ if __name__ == '__main__':
 
 
     hard_configs = [
-        [0, 0, -153],
+        # [0, 0, -153],
         [0, 0, 117],
         [0, 0, -143],
         [0, 0, 155],
@@ -411,7 +410,7 @@ if __name__ == '__main__':
         [0, 0, -120],
         [0, 0, 133],#
         [0, 0, -156],#
-        [0, 0, 180],
+        # [0, 0, 180],
         [0, 0, -131],
         [0.04, -0.23, -98],
         [-0.02, -0.21, -129],#
@@ -420,7 +419,7 @@ if __name__ == '__main__':
         [0.07, 0.28, 180],
         [0.04, -0.30, -92],#
         [-0.02, -0.21, -139],
-        # [0.02, -0.12, -148],
+        [0.02, -0.12, -148],
         [-0.01, 0.34, 167],
         [0.07, 0.22, 170] #
     ]

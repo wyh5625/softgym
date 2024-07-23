@@ -20,12 +20,12 @@ class ClothEnv(FlexEnv):
 
         if action_mode == 'picker':
             self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                      picker_low=(-0.4, 0., -0.4), picker_high=(1.0, 0.5, 0.4))
+                                      picker_low=(-1.0, 0., -1.0), picker_high=(1.0, 10.0, 1.0))
             self.action_space = self.action_tool.action_space
             self.picker_radius = picker_radius
         elif action_mode == 'pickerpickplace':
-            self.action_tool = PickerPickPlace(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
-                                               picker_low=(-5, 0., -5), picker_high=(5, 0.3, 5))
+            self.action_tool = PickerPickPlace(num_picker=num_picker, picker_radius=picker_radius, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
+                                               picker_low=(-5, 0., -5), picker_high=(5, 20.0, 5))
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
         elif action_mode in ['sawyer', 'franka']:
@@ -91,7 +91,7 @@ class ClothEnv(FlexEnv):
         camera_name = config['camera_name']
         cam_pos = config['camera_params'][camera_name]['pos']
         cam_angle = config['camera_params'][camera_name]['angle']
-        return cam_pos, cam_angle
+        return camera_name, cam_pos, cam_angle
 
     def get_default_config(self):
         """ Set the default config of the environment and load it to self.config """
@@ -102,19 +102,21 @@ class ClothEnv(FlexEnv):
         else:
             cam_pos, cam_angle = np.array([-0.0, 2.3, 0]), np.array([0.0, -90 / 180. * np.pi, 0.0])
         config = {
-            'ClothPos': [0.01, 0.15, 0.01],
+            'ClothPos': [0.0, 2.15, 0.0],
+            'ClothOri': [0, 0, 0],
             # 48cm x 33cm
-            'ClothSize': [int(0.6 / particle_radius), int(0.36875 / particle_radius)],  # 0.6*0.36875
+            # 'ClothSize': [int(0.6 / particle_radius), int(0.36875 / particle_radius)],  # 0.6*0.36875
+            'ClothSize': [1.0, 1.0],
             # 'ClothSize': [int(0.40 / particle_radius), int(0.24 / particle_radius)], # [95, 59]
             # 'ClothSize': [int(0.48 / particle_radius), int(0.33 / particle_radius)],
-            'ClothStiff': [2.8, 0.2, 0.8],  # Stretch, Bend and Shear
+            'ClothStiff': [0.8, 0.2, 0.8],  # Stretch, Bend and Shear
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
                                   {'pos': cam_pos,
                                    'angle': cam_angle,
                                    'width': camera_width,
                                    'height': camera_height}},
-            'mass': 0.01,
+            'mass': 0.1,
             'flip_mesh': 1,
             'drop_height': 0.5,
             'static_friction': 0.2,
@@ -168,7 +170,7 @@ class ClothEnv(FlexEnv):
         mass = config['mass'] if 'mass' in config else 0.5
         scene_params = np.array([*config['ClothPos'], *config['ClothSize'], *config['ClothStiff'], render_mode,
                                  *camera_params['pos'][:], *camera_params['angle'][:], camera_params['width'], camera_params['height'], mass,
-                                 config['flip_mesh'], config['static_friction'], config['dynamic_friction']])
+                                 config['flip_mesh'], config['static_friction'], config['dynamic_friction'], *config['ClothOri']])
         if self.version == 2:
             robot_params = [1.] if self.action_mode in ['sawyer', 'franka'] else []
             self.params = (scene_params, robot_params)

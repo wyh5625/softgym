@@ -31,6 +31,7 @@ void pyflex_init(bool headless=false, bool render=true, bool tweak_panel=false, 
     g_scenes.push_back(new SoftgymPants("Softgym Pants"));
     g_scenes.push_back(new SoftgymTShirts("Softgym TShirts"));
     g_scenes.push_back(new SoftgymLongSleeve("Softgym LongSleeve"));
+    g_scenes.push_back(new SoftgymTshirtPokeZp("Softgym TshirtPokeZp"));
 
     SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
 	rope.mScale = Vec3(50.0f);
