@@ -152,7 +152,7 @@ class PantsPushEnv(ClothPushEnv):
             'ClothPos': [0.01, 0.01, 0.01],
             'ClothScale': [0.5, 0.5],
             'ClothSize': [1, 1],
-            'ClothStiff': [0.2, 1, 0.2], # [2.9, 0.1, 2.8]
+            'ClothStiff': [0.8, 1, 0.8], # [2.9, 0.1, 2.8]
             'camera_name': 'default_camera',
             'stiff': 0.9,
             'radius': self.cloth_particle_radius,
@@ -164,8 +164,8 @@ class PantsPushEnv(ClothPushEnv):
                                    'height': camera_height}},
             'mass': 0.2,
             'flip_mesh': 0,
-            'static_friction': 0.9,
-            'dynamic_friction': 0.9,
+            'static_friction': 0.2,
+            'dynamic_friction': 0.2,
             'drop_height': 0.1,
             'flatten_area': 0,
             'env_idx': 5

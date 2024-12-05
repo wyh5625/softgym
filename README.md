@@ -1,24 +1,15 @@
 # SoftGym
 <a href="https://sites.google.com/view/softgym/home">SoftGym</a> is a set of benchmark environments for deformable object manipulation including tasks involving fluid, cloth and rope. It is built on top of the Nvidia FleX simulator and has standard Gym API for interaction with RL agents. A number of RL algorithms benchmarked on SoftGym can be found in <a href="https://github.com/Xingyu-Lin/softagent">SoftAgent</a>
 
-## SoftGym Environment for Pushing
-|Image|Name|Description|
-|----------|:-------------|:-------------|
-|![Gif](./examples/ClothPush.gif)|[PushCloth](softgym/envs/cloth_push.py) | RRT* planning for pushing cloth on the floor|
-|![Gif](./examples/PantsPush.gif)|[PushPants](softgym/envs/pants_push.py) | RRT* planning for pushing pants on the floor|
+## SoftGym Environment for Picking
 
 ## User Guide
-Try pushing cloth with GUI:
+Try picking cloth with GUI:
 
 ```
-python examples/Manual_ClothPush.py
+python examples/control_cloth.py
 ```
 
-Test RRT* planning by running: 
-
-```
-python examples/Control_ClothPush.py
-```
 
 ## Cite
 If you find this codebase useful in your research, please consider citing:

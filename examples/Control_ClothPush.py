@@ -90,13 +90,14 @@ def create_env(env_name='PantsPushPPP'):
     env_kwargs['pusher_length'] = 0.125
     env_kwargs['tweak_panel'] = 0
 
-    env_kwargs['constraints'] = True
+    env_kwargs['constraints'] = False
 
     if not env_kwargs['use_cached_states']:
         print('Waiting to generate environment variations. May take 1 minute for each variation...')
     # env = normalize(SOFTGYM_ENVS[args.env_name](**env_kwargs))
     env = SOFTGYM_ENVS[env_name](**env_kwargs)
     # env.reset()
+    
     env.init_pusher([0,0.1,0,0])
 
     # frames = [env.get_image(720, 720)]
@@ -1064,9 +1065,9 @@ def main(env, data_path="./data", demo_id=0, target_config=(0.5,0,0), method_id=
     method = methods[method_id]
 
     # --------- 2. define task --------#
-    start_config = (0, -0.9, 0)
+    start_config = (0, -0.0, 0)
     # target_config = target_configs[task_id]
-    env.set_start_state([0, -0.9], 0)
+    env.set_start_state([0, -0.0], 0)
     env.set_target_corner([target_config[0], target_config[1]], target_config[2])
 
     middle = [(start_config[0] + target_config[0])/2, (start_config[1] + target_config[1])/2]
@@ -1504,9 +1505,9 @@ if __name__ == '__main__':
     # main(demo_id=0, task_id=4, method_id=1, reuse_path=True)
 
     # target_configs[4]
-    demo_id = 0
+    demo_id = 1
     env = create_env(demos[demo_id])
-    main(env, demo_id=0, target_config=(0, -0.9, np.deg2rad(180)), method_id=0, reuse_path=False)
+    main(env, demo_id=1, target_config=(0, -0.0, np.deg2rad(180)), method_id=0, reuse_path=True)
     # compare(demo_id=0, task_id=4)
 
     # main(demo_id=0, task_id=5, method_id=0, reuse_path=True)

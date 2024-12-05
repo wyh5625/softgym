@@ -25,7 +25,7 @@ from softgym.utils.pyflex_utils import center_object
 from scipy.spatial.transform import Rotation
 
 
-def create_env():
+def create_env(model_name='Pants'):
     # parser = argparse.ArgumentParser(description='Process some integers.')
     # # ['PassWater', 'PourWater', 'PourWaterAmount', 'RopeFlatten', 'ClothFold', 'ClothFlatten', 'ClothDrop', 'ClothFoldCrumpled', 'ClothFoldDrop', 'RopeConfiguration']
     # parser.add_argument('--env_name', type=str, default='ClothPushPPP')
@@ -44,7 +44,7 @@ def create_env():
 
     # args = parser.parse_args()
 
-    env_name = 'PantsPushPPP'
+    env_name = 'PolygonPushPPP'
     env_kwargs = env_arg_dict[env_name]
 
     # # Generate and save the initial states for running this environment for the first time
@@ -59,6 +59,7 @@ def create_env():
     env_kwargs['picker_radius'] = 0.01
     env_kwargs['pusher_length'] = 0.125
     env_kwargs['tweak_panel'] = 0
+    env_kwargs['model_name'] = model_name
 
     env_kwargs['constraints'] = True
 
@@ -84,20 +85,20 @@ def create_env():
 
 def main():
     # --------- 1. create environment --------#
-    env = create_env()
+    env = create_env(model_name="Shirts")
 
     # push_pose = generate_pusher_poses(env)[0]
 
-    push_poses = env.generate_pusher_poses()
-    pp = push_poses[7]
+    # push_poses = env.generate_pusher_poses()
+    # pp = push_poses[7]
 
-    particle_pos = env._get_flat_pos()
-    # pusher_pos = np.array([*particle_pos[pp[0]], pp[1]])
-    pusher_pos = [-0.18749998229387188, 0.001, 0.27063556833560654, 0]
+    # particle_pos = env._get_flat_pos()
+    # # pusher_pos = np.array([*particle_pos[pp[0]], pp[1]])
+    # pusher_pos = [-0.18749998229387188, 0.001, 0.27063556833560654, 0]
 
     
-    # print(pusher_pos)
-    env.init_pusher(pusher_pos)
+    # # print(pusher_pos)
+    # env.init_pusher(pusher_pos)
 
     # pyflex.draw_rect(*[0.0, 0.0, 2.0, 2.0], [0.0, 0.0, 0.0])
     

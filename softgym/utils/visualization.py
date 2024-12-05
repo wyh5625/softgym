@@ -107,7 +107,7 @@ def save_numpy_as_gif(array, filename, fps=20, scale=1.0):
 
     # make the moviepy clip
     clip = ImageSequenceClip(list(array), fps=fps).resize(scale)
-    clip.write_gif(gif_filename, fps=fps)
+    # clip.write_gif(gif_filename, fps=fps)
     clip.write_videofile(mp4_filename, fps=fps)
     return clip
 

@@ -4,7 +4,7 @@ import numpy as np
 import os
 from softgym.registered_env import env_arg_dict, SOFTGYM_ENVS
 from softgym.utils.normalized_env import normalize
-from softgym.utils.visualization import save_numpy_as_gif
+from softgym.utils.visualization import save_numpy_as_gif, save_frame_as_image
 import pyflex
 from matplotlib import pyplot as plt
 
@@ -73,26 +73,11 @@ def sample(env, pusher_poses):
 
     start_time = time.time()
 
-    # vectors += init_pusher_pos[:3]
-    # rots += init_pusher_pos[3]
-
-    # create a multi-array list
     
     dimx, dimy = env.get_current_config()['ClothSize']
     
     particle_pos = env._get_flat_pos()
-    # particle_pos = particle_pos.reshape((dimy, dimx,3))
-    # pusher half length idx
-    # phi = int(0.5*env.action_tool.pusher_length/env.cloth_particle_radius)
-
-    # 9 primary sample points
-    # Xs = [phi, int(dimx/2), dimx-phi]
-    # Ys = [phi, int(dimy/2), dimy-phi]
-
-
-    # XX, YY = np.meshgrid(Xs, Ys)
-    # XX = XX.flatten()
-    # YY = YY.flatten()
+    
     deform_data = []
 
 
@@ -101,22 +86,23 @@ def sample(env, pusher_poses):
 
     np.set_printoptions(precision=3, suppress=True, formatter={'separator': ','})
 
+    # remove pants
 
+    # env.start_record()
+    # env.shoot_frame()
+    # frame_path = os.path.join("./data", 'deformation')
+    # save_frame_as_image(env.video_frames[-1], os.path.join(frame_path, f"init.png"))
+
+    # exit()
+
+    j = 0
+    env.start_record()
     for push_pose in pusher_poses:
         # init_pusher_pos = np.array([*particle_pos[push_pose[0]], push_pose[1]])
         init_pusher_pos = np.array([push_pose[0][0], 0.001, push_pose[0][1], push_pose[1]])
         print("pusher pose: ", init_pusher_pos)
         for i in range(len(vectors)):
-            # find the proper pusher pose that has the normal direction 
-            # with cross angle between moving direction which is smaller than 90 degree
-            # center_pos = particle_pos[push_pose[0]]
-            # center_pos[1] = 0.01
-            # # print(center_pos)
-            # pos_2d = center_pos[[0, 2]]
-            # norm_v = env.get_normal_of_push_pose(pos_2d[0], pos_2d[1], push_pose[1])
-            # move_v = np.array([vectors[i][0], vectors[i][1]])
-            # cross_angle = np.arccos(np.dot(norm_v, move_v)/(np.linalg.norm(norm_v)*np.linalg.norm(move_v)))
-            # if True:
+        
             print("push direction: ", vectors[i])
 
             actions_all_rots = []
@@ -145,6 +131,11 @@ def sample(env, pusher_poses):
                 # push_pose_init = np.array([*center_pos, push_pose[1]])
                 error = env.test_sample(init_pusher_pos, action, record=False,
                                             img_size=720, save_video_dir='./data/')
+
+                # env.shoot_frame()
+                # frame_path = os.path.join("./data", 'deformation')
+                # save_frame_as_image(env.video_frames[-1], os.path.join(frame_path, f"deform_{j}.png"))
+                # j += 1
                     
                 # env.get_current_corner_pos()
 

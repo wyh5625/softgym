@@ -5,7 +5,7 @@
 #include <list>
 #include <iterator>
 
-class SoftgymPants : public Scene
+class SoftgymTshirtPokeZp: public Scene
 {
 public:
     float cam_x;
@@ -18,7 +18,7 @@ public:
     int cam_height;
     char pants_path[100];
 
-    SoftgymPants(const char* name) : Scene(name) {}
+    SoftgymTshirtPokeZp(const char* name) : Scene(name) {}
 
     char* make_path(char* full_path, std::string path) {
         strcpy(full_path, getenv("PYFLEXROOT"));
@@ -74,7 +74,7 @@ public:
 
 
 
-    void createPants(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
+    void createTshirtPokeZp(const char* filename, Vec3 lower, float scale, Vec3 rotation, Vec3 velocity, int phase, float Mass, float stretchStiffness, float bendStiffness)
     {
         // import the mesh
         Mesh* m = ImportMesh(filename);
@@ -86,10 +86,12 @@ public:
         if (!m)
             return;
 
-        // rotate mesh
-        m->Transform(RotationMatrix(3.1415, Vec3(0.0f, 0.0f, 1.0f)));
+        // rotate mesh, "yaw-pitch-roll" rotation order is common
+        // in softgym, Yaw: y-axis, Pitch: x-axis, Roll: z-axis
+        m->Transform(RotationMatrix(rotation[1], Vec3(0.0f, 1.0f, 0.0f)));
+        m->Transform(RotationMatrix(rotation[0], Vec3(1.0f, 0.0f, 0.0f)));
+        m->Transform(RotationMatrix(rotation[2], Vec3(0.0f, 0.0f, 1.0f)));
 
-        m->Transform(RotationMatrix(rotation, Vec3(0.0f, 1.0f, 0.0f)));
 
         Vec3 meshLower, meshUpper;
         m->GetBounds(meshLower, meshUpper);
@@ -98,9 +100,9 @@ public:
         float maxEdge = max(max(edges.x, edges.y), edges.z);
 
         // put mesh at the origin and scale to specified size
-        // Matrix44 xform = ScaleMatrix(scale/maxEdge)*TranslationMatrix(Point3(-meshLower));
+        Matrix44 xform = ScaleMatrix(scale/maxEdge)*TranslationMatrix(Point3(-meshLower));
 
-        // m->Transform(xform);
+        m->Transform(xform);
         m->GetBounds(meshLower, meshUpper);
 
         // index of particles
@@ -338,12 +340,16 @@ public:
         float static_friction = ptr[19];
         float dynamic_friction = ptr[20];
 
-        float rot = 0;
+        float rot_x = ptr[21];
+        float rot_y = ptr[22];
+        float rot_z = ptr[23];
+
+        Vec3 rotation = Vec3(rot_x, rot_y, rot_z);
 
 
-        createPants(make_path(pants_path, "/data/pants.obj"), Vec3(initX, initY, initZ), scaleX, rot, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
+        createTshirtPokeZp(make_path(pants_path, "/data/tshirt_poke_zp.obj"), Vec3(initX, initY, initZ), scaleX, rotation, Vec3(0, 0, 0), phase, mass, stretchStiffness, bendStiffness);
 
-        // createPants(make_path(pants_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
+        // createTShirts(make_path(pants_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;

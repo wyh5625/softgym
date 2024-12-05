@@ -3,7 +3,7 @@ import copy
 from gym import error
 import numpy as np
 import gym
-from softgym.utils.visualization import save_numpy_as_gif
+from softgym.utils.visualization import save_numpy_as_gif, save_frame_as_image
 import cv2
 import os.path as osp
 import pickle
@@ -159,8 +159,12 @@ class FlexEnv(gym.Env):
             for i in range(500):
                 self.video_frames.append(self.video_frames[-1])
             
-            save_numpy_as_gif(np.array(self.video_frames[::5]), video_path, **kwargs)
+            save_numpy_as_gif(np.array(self.video_frames[::2]), video_path, **kwargs)
+            # save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
         del self.video_frames
+
+    def save_png(self, path):
+        save_frame_as_image(self.video_frames[-1], path)
 
     def reset(self, config=None, initial_state=None, config_id=None):
         if config is None:

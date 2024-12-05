@@ -41,8 +41,10 @@ class Picker(ActionToolBase):
         self.init_particle_pos = init_particle_pos
         self.spring_coef = spring_coef  # Prevent picker to drag two particles too far away
 
-        space_low = np.array([-0.1, -0.1, -0.1, 0] * self.num_picker) * 0.1  # [dx, dy, dz, [0, 1]]
-        space_high = np.array([0.1, 0.1, 0.1, 10] * self.num_picker) * 0.1
+        self.ids = []
+
+        space_low = np.array([-10.0, -10.0, -10.0, 0] * self.num_picker) * 0.1  # [dx, dy, dz, [0, 1]]
+        space_high = np.array([10.0, 10.0, 10.0, 10] * self.num_picker) * 0.1
         self.action_space = Box(space_low, space_high, dtype=np.float32)
 
     def update_picker_boundary(self, picker_low, picker_high):
@@ -79,7 +81,8 @@ class Picker(ActionToolBase):
 
         for picker_pos in init_picker_poses:
             # get id of add_sphereadd_sphere
-            pyflex.add_sphere(self.picker_radius, picker_pos, [1, 0, 0, 0])
+            id = pyflex.add_sphere(self.picker_radius, picker_pos, [1, 0, 0, 0])
+            self.ids.append(id)
         pos = pyflex.get_shape_states()  # Need to call this to update the shape collision
         pyflex.set_shape_states(pos)
 
@@ -107,13 +110,14 @@ class Picker(ActionToolBase):
     def _set_pos(picker_pos, particle_pos, ids=None):
         shape_states = np.array(pyflex.get_shape_states()).reshape(-1, 14)
         if ids is None:
-            shape_states[:, 3:6] = shape_states[:, :3]
+            shape_states[:, 3:6] = picker_pos
             shape_states[:, :3] = picker_pos
         else:
-            shape_states[ids, 3:6] = shape_states[ids, :3]
+            shape_states[ids, 3:6] = picker_pos
             shape_states[ids, :3] = picker_pos
         pyflex.set_shape_states(shape_states)
         pyflex.set_positions(particle_pos)
+        pyflex.step()
 
     @staticmethod
     def set_picker_pos(picker_pos, ids=None):
@@ -139,7 +143,6 @@ class Picker(ActionToolBase):
         pick_flag = action[:, 3] > 0.5
         picker_pos, particle_pos = self._get_pos(ids)
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
-
         # Un-pick the particles
         # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
         for i in range(self.num_picker):
@@ -168,7 +171,6 @@ class Picker(ActionToolBase):
                 if self.picked_particles[i] is not None:
                     # TODO The position of the particle needs to be updated such that it is close to the picker particle
                     new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,:]
-                    new_particle_pos[self.picked_particles[i], 1] = 0.001
                     new_particle_pos[self.picked_particles[i], 3] = 0  # Set the mass to infinity
 
         # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
@@ -181,6 +183,7 @@ class Picker(ActionToolBase):
                     active_picker_indices.append(i)
 
             l = len(picked_particle_idices)
+
             for i in range(l):
                 for j in range(i + 1, l):
                     init_distance = np.linalg.norm(self.init_particle_pos[picked_particle_idices[i], :3] -
@@ -309,6 +312,7 @@ class Pusher(Picker):
                     actions.extend([delta_t[0]+r_t[0], delta_t[1]+r_t[1], delta_t[2]+r_t[2], action[4]])
             super().step(actions, ids=self.pusher_particles)
             pyflex.step()
+            # super().set_static_velocity()
             total_steps += 1
             if self.env is not None and self.env.recording:
                 # print("recording in action_tool")
